@@ -968,6 +968,9 @@ __rtp_session_sendm_with_ts (RtpSession * session, mblk_t *mp, uint32_t packet_t
 
 		stream->stats.packet_dup_sent+=(int)session->duplication_left;
 		ortp_global_stats.packet_sent+=(int)session->duplication_left;;
+
+        //Fec process
+        ms_fec_driver_outgoing_rtp(session->fec, mp);
 	}
 
 	while (session->duplication_left>=1.f) {
@@ -1187,7 +1190,8 @@ rtp_session_recvm_with_ts (RtpSession * session, uint32_t user_ts)
 	}
 
 	/*calculate the stream timestamp from the user timestamp */
-	ts = jitter_control_get_compensated_timestamp(&session->rtp.jittctl,user_ts);
+	//GYF add delay for FEC decode test
+	ts = -4000 + jitter_control_get_compensated_timestamp(&session->rtp.jittctl,user_ts);
 	if (session->rtp.jittctl.enabled==TRUE){
 		if (session->permissive)
 			mp = rtp_getq_permissive(&session->rtp.rq, ts,&rejected);
@@ -1211,6 +1215,8 @@ rtp_session_recvm_with_ts (RtpSession * session, uint32_t user_ts)
 		stream->stats.recv += msgsize;
 		rtp = (rtp_header_t *) mp->b_rptr;
 		packet_ts=rtp->timestamp;
+		
+		ms_fec_driver_incoming_rtp(session->fec, mp, user_ts);
 		ortp_debug("Returning mp with ts=%i", packet_ts);
 		/* check for payload type changes */
 		if (session->rcv.pt != rtp->paytype)

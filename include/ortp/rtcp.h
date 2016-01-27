@@ -44,7 +44,8 @@ typedef enum {
 	RTCP_APP = 204,
 	RTCP_RTPFB = 205,
 	RTCP_PSFB = 206,
-	RTCP_XR = 207
+	RTCP_XR = 207,
+	RTCP_FEC = 208
 } rtcp_type_t;
 
 
@@ -399,6 +400,14 @@ typedef struct rtcp_app{
 	char name[4];
 } rtcp_app_t;
 
+typedef struct rtcp_fec{
+	rtcp_common_header_t ch;
+	uint16_t seq;	//rtp seq_number of last rtp of the block
+	uint16_t index;	//fec index
+	uint16_t block_size;
+	uint16_t source_num;
+} rtcp_fec_t;
+
 struct _RtpSession;
 struct _RtpStream;
 ORTP_PUBLIC void rtp_session_rtcp_process_send(struct _RtpSession *s);
@@ -439,6 +448,15 @@ ORTP_PUBLIC void rtcp_sdes_parse(const mblk_t *m, SdesItemFoundCallback cb, void
 ORTP_PUBLIC bool_t rtcp_is_BYE(const mblk_t *m);
 ORTP_PUBLIC bool_t rtcp_BYE_get_ssrc(const mblk_t *m, int idx, uint32_t *ssrc);
 ORTP_PUBLIC bool_t rtcp_BYE_get_reason(const mblk_t *m, const char **reason, int *reason_len);
+
+/*FEC accessors */
+ORTP_PUBLIC bool_t rtcp_is_FEC(const mblk_t *m);
+uint16_t rtcp_FEC_get_seq(const mblk_t *m);
+uint16_t rtcp_FEC_get_index(const mblk_t *m);
+uint16_t rtcp_FEC_get_block_size(const mblk_t *m);
+uint16_t rtcp_FEC_get_source_num(const mblk_t *m);
+/* retrieve the data. when returning, data points directly into the mblk_t */
+void rtcp_FEC_get_data(const mblk_t *m, char **data, int *len);
 
 /*APP accessors */
 ORTP_PUBLIC bool_t rtcp_is_APP(const mblk_t *m);

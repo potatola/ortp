@@ -1509,6 +1509,8 @@ static int process_rtcp_packet( RtpSession *session, mblk_t *block, struct socka
 			compute_rtcp_xr_statistics(session, block, &reception_date);
 		} else if (rtcp_is_RTPFB(block)) {
 			handle_rtcp_rtpfb_packet(session, block);
+		} else if (rtcp_is_FEC(block)) {
+			ms_fec_driver_process_rtcp(session->fec, block);
 		}
 	}while (rtcp_next_packet(block));
 	rtcp_rewind(block);

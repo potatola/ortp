@@ -374,6 +374,18 @@ static int rtcp_app_init(RtpSession *session, uint8_t *buf, uint8_t subtype, con
 	return sizeof(rtcp_app_t);
 }
 
+static int rtcp_fec_init(RtpSession *session, uint8_t *buf, uint8_t subtype, uint16_t seq, uint16_t index, uint16_t block_size, uint16_t source_num, int size){
+	rtcp_fec_t *fec=(rtcp_fec_t*)buf;
+	if (size<sizeof(rtcp_fec_t)) return 0;
+	rtcp_common_header_init(&fec->ch,session,RTCP_FEC,subtype,size);
+	fec->seq=htons(seq);
+	fec->index=htons(index);
+	fec->block_size=htons(block_size);
+	fec->source_num=htons(source_num);
+	return sizeof(rtcp_fec_t);
+}
+
+
 static mblk_t * make_rr(RtpSession *session) {
 	mblk_t *cm = allocb(sizeof(rtcp_sr_t), 0);
 	cm->b_wptr += rtcp_rr_init(session, cm->b_wptr, sizeof(rtcp_rr_t));
@@ -624,6 +636,20 @@ void rtp_session_send_rtcp_APP(RtpSession *session, uint8_t subtype, const char 
 	mblk_t *h=allocb(sizeof(rtcp_app_t),0);
 	mblk_t *d;
 	h->b_wptr+=rtcp_app_init(session,h->b_wptr,subtype,name,datalen+sizeof(rtcp_app_t));
+	d=esballoc((uint8_t*)data,datalen,0,NULL);
+	d->b_wptr+=datalen;
+	h->b_cont=d;
+	rtp_session_rtcp_send(session,h);
+}
+
+/**
+ * send an FEC packet as rtcp packet
+ * CAUTION: the data len must be multiple of 4
+**/
+void rtp_session_send_rtcp_FEC(RtpSession *session, uint8_t subtype, uint16_t seq, uint16_t index, uint16_t block_size, uint16_t source_num, const uint8_t *data, int datalen){
+	mblk_t *h=allocb(sizeof(rtcp_fec_t),0);
+	mblk_t *d;
+	h->b_wptr+=rtcp_fec_init(session,h->b_wptr,subtype,seq,index,block_size,source_num,datalen+sizeof(rtcp_fec_t));
 	d=esballoc((uint8_t*)data,datalen,0,NULL);
 	d->b_wptr+=datalen;
 	h->b_cont=d;

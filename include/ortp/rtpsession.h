@@ -37,6 +37,7 @@
 #include <ortp/rtpprofile.h>
 #include <ortp/sessionset.h>
 #include <ortp/rtcp.h>
+#include <ortp/fecdriver.h>
 #include <ortp/str_utils.h>
 #include <ortp/rtpsignaltable.h>
 #include <ortp/event.h>
@@ -378,6 +379,7 @@ struct _RtpSession
 	struct _OList *eventqs;
 	RtpStream rtp;
 	RtcpStream rtcp;
+	MSFecDriver *fec;
 	OrtpRtcpXrStats rtcp_xr_stats;
 	RtpSessionMode mode;
 	struct _RtpScheduler *sched;
@@ -554,6 +556,7 @@ ORTP_PUBLIC float rtp_session_get_rtcp_send_bandwidth(RtpSession *session);
 ORTP_PUBLIC float rtp_session_get_rtcp_recv_bandwidth(RtpSession *session);
 
 ORTP_PUBLIC void rtp_session_send_rtcp_APP(RtpSession *session, uint8_t subtype, const char *name, const uint8_t *data, int datalen);
+ORTP_PUBLIC void rtp_session_send_rtcp_FEC(RtpSession *session, uint8_t subtype, uint16_t seq, uint16_t index, uint16_t block_size, uint16_t source_num, const uint8_t *data, int datalen);
 
 ORTP_PUBLIC uint32_t rtp_session_get_current_send_ts(RtpSession *session);
 ORTP_PUBLIC uint32_t rtp_session_get_current_recv_ts(RtpSession *session);

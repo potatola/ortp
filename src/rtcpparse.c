@@ -283,6 +283,57 @@ void rtcp_APP_get_data(const mblk_t *m, uint8_t **data, int *len){
 }
 
 
+/* RTCP FEC accessors */
+bool_t rtcp_is_FEC(const mblk_t *m){
+	const rtcp_common_header_t *ch=rtcp_get_common_header(m);
+	size_t size=rtcp_get_size(m);
+	if (ch!=NULL && rtcp_common_header_get_packet_type(ch)==RTCP_FEC){
+		if (msgdsize(m)<size){
+			ortp_warning("Too short RTCP FEC packet.");
+			return FALSE;
+		}
+		if (size < sizeof(rtcp_app_t)){
+			ortp_warning("Bad RTCP FEC packet.");
+			return FALSE;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+uint16_t rtcp_FEC_get_seq(const mblk_t *m){
+	rtcp_fec_t *fec=(rtcp_fec_t*)m->b_rptr;
+	return ntohs(fec->seq);
+}
+
+uint16_t rtcp_FEC_get_index(const mblk_t *m){
+	rtcp_fec_t *fec=(rtcp_fec_t*)m->b_rptr;
+	return ntohs(fec->index);
+}
+
+
+uint16_t rtcp_FEC_get_block_size(const mblk_t *m){
+	rtcp_fec_t *fec=(rtcp_fec_t*)m->b_rptr;
+	return ntohs(fec->block_size);
+}
+
+uint16_t rtcp_FEC_get_source_num(const mblk_t *m){
+	rtcp_fec_t *fec=(rtcp_fec_t*)m->b_rptr;
+	return ntohs(fec->source_num);
+}
+/* retrieve the data. when returning, data points directly into the mblk_t */
+void rtcp_FEC_get_data(const mblk_t *m, char **data, int *len){
+	int datalen=(int)rtcp_get_size(m)-sizeof(rtcp_fec_t);
+	if (datalen>0){
+		*data=(char *)m->b_rptr+sizeof(rtcp_fec_t);
+		*len=datalen;
+	}else{
+		*len=0;
+		*data=NULL;
+	}
+}
+
+
 /* RTCP XR accessors */
 bool_t rtcp_is_XR(const mblk_t *m) {
 	const rtcp_common_header_t *ch = rtcp_get_common_header(m);

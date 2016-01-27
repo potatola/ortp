@@ -59,7 +59,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Ws2_32.lib;delayimp.lib;Winmm.lib;qwave.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Ws2_32.lib;delayimp.lib;Winmm.lib;qwave.lib;liblonghair.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(IntDir)ortp.dll</OutputFile>
       <AdditionalLibraryDirectories>..\..\..\win32-bin\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
@@ -114,6 +114,7 @@
     <ClCompile Include="..\..\src\dll_entry.c" />
     <ClCompile Include="..\..\src\event.c" />
     <ClCompile Include="..\..\src\extremum.c" />
+    <ClCompile Include="..\..\src\fecdriver.c" />
     <ClCompile Include="..\..\src\jitterctl.c" />
     <ClCompile Include="..\..\src\logging.c" />
     <ClCompile Include="..\..\src\netsim.c" />
