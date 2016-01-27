@@ -48,7 +48,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\..\win32-bin\include;..\..\include;..\..\include\ortp;..\..\src;..\..\build\win32native\include;..\..\build\vsx\ortp\ortp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\win32-bin\include;..\..\include;..\..\include\ortp;..\..\src;..\..\build\win32native;..\..\build\vsx\ortp\ortp;..\..\include\MSVC;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;ORTP_INET6;WIN32;_DEBUG;_WINDOWS;_USRDLL;ORTP_EXPORTS;WINDOW_NATIVE;HAVE_CONFIG_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -113,11 +113,11 @@
     <ClCompile Include="..\..\src\b64.c" />
     <ClCompile Include="..\..\src\dll_entry.c" />
     <ClCompile Include="..\..\src\event.c" />
+    <ClCompile Include="..\..\src\extremum.c" />
     <ClCompile Include="..\..\src\jitterctl.c" />
     <ClCompile Include="..\..\src\logging.c" />
     <ClCompile Include="..\..\src\netsim.c" />
     <ClCompile Include="..\..\src\ortp.c" />
-    <ClCompile Include="..\..\src\ortp_srtp.c" />
     <ClCompile Include="..\..\src\payloadtype.c" />
     <ClCompile Include="..\..\src\port.c" />
     <ClCompile Include="..\..\src\posixtimer.c" />
@@ -134,11 +134,8 @@
     <ClCompile Include="..\..\src\scheduler.c" />
     <ClCompile Include="..\..\src\sessionset.c" />
     <ClCompile Include="..\..\src\str_utils.c" />
-    <ClCompile Include="..\..\src\stun.c" />
-    <ClCompile Include="..\..\src\stun_udp.c" />
     <ClCompile Include="..\..\src\telephonyevents.c" />
     <ClCompile Include="..\..\src\utils.c" />
-    <ClCompile Include="..\..\src\zrtp.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ortp\b64.h" />
