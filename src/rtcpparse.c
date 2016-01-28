@@ -322,10 +322,10 @@ uint16_t rtcp_FEC_get_source_num(const mblk_t *m){
 	return ntohs(fec->source_num);
 }
 /* retrieve the data. when returning, data points directly into the mblk_t */
-void rtcp_FEC_get_data(const mblk_t *m, char **data, int *len){
+void rtcp_FEC_get_data(const mblk_t *m, unsigned char **data, int *len){
 	int datalen=(int)rtcp_get_size(m)-sizeof(rtcp_fec_t);
 	if (datalen>0){
-		*data=(char *)m->b_rptr+sizeof(rtcp_fec_t);
+		*data=(unsigned char *)m->b_rptr+sizeof(rtcp_fec_t);
 		*len=datalen;
 	}else{
 		*len=0;

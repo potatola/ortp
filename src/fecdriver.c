@@ -61,20 +61,20 @@ void rtp_session_send_rtcp_FEC(RtpSession *session, uint8_t subtype, uint16_t se
 
 typedef struct _MSSimpleFecDriver{
 	MSFecDriver parent;
-	char ** source_packets;
-	int block_max, block_size, source_num, source_curr, fec_rate;
+	unsigned char ** source_packets;
+	uint16_t block_max, block_size, source_num, source_curr, fec_rate;
 	uint32_t last_ts;
 	queue_t recv_fec;	//rtcp with fec data
 }MSSimpleFecDriver;
 
 // TODO: check for memory leakage
 #define MSG_STORE_SIZE 1600
-static char* msg2stream(mblk_t *im) {
-	char *ret;
+static unsigned char* msg2stream(mblk_t *im) {
+	unsigned char *ret;
 	int pkt_size;
 	msgpullup(im, -1);
 	pkt_size = msgdsize(im);
-	ret = (char *)malloc(sizeof(int) + MSG_STORE_SIZE * sizeof(char));
+	ret = (unsigned char *)malloc(sizeof(int) + MSG_STORE_SIZE * sizeof(char));
 	memset(ret, 0, sizeof(int) + MSG_STORE_SIZE * sizeof(char));
 	memcpy(ret, &pkt_size, sizeof(int));
 	memcpy(ret+sizeof(int), im->b_rptr, im->b_wptr - im->b_rptr);
@@ -89,7 +89,7 @@ bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint1
 	obj->block_size = 0;
 	obj->source_num = source_num;
 	obj->fec_rate = fec_rate;
-	ortp_message("FecDriver: fec rate set to (%d, %d\%)", source_num, fec_rate);
+	ortp_message("FecDriver: fec rate set to (%d, %d%%)", source_num, fec_rate);
 	return TRUE;
 }
 
@@ -106,7 +106,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	if(obj->fec_rate == 0) return TRUE;
 
 	//an int indicating size of the packet is added at head of the stream
-	obj->block_max = max(obj->block_max, msg_size+sizeof(int));
+	if(obj->block_max < msg_size+sizeof(int)) obj->block_max = msg_size+sizeof(int);
 	obj->source_packets[obj->source_curr] = msg2stream(rtp);
 
 	//update stat
@@ -125,7 +125,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
 			redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
-			if (cauchy_256_encode(obj->source_curr, redundancy_num, obj->source_packets, redundancy, redundancy_size)) {
+			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, redundancy, redundancy_size)) {
 				ortp_message("RSEncoder: ENCODE ERROR!");
 				return FALSE;
 			}
@@ -133,7 +133,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
 			for(; fec_index < redundancy_num; fec_index++) {
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
-					obj->source_curr+redundancy_num, obj->source_curr, redundancy, redundancy_size);
+					(uint16_t)(obj->source_curr+redundancy_num), (uint16_t)obj->source_curr, (uint8_t *)redundancy, redundancy_size);
 				redundancy += redundancy_size;
 			}
 			
@@ -148,7 +148,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	return TRUE;
 }
 
-mblk_t *reconstruct_rtp_packet(char *buffer, int pkt_size){
+mblk_t *reconstruct_rtp_packet(unsigned char *buffer, int pkt_size){
 	mblk_t *mp = NULL;
 	rtp_header_t *hdr;
 	int i;
@@ -167,6 +167,7 @@ mblk_t *reconstruct_rtp_packet(char *buffer, int pkt_size){
 	return mp;
 }
 
+void rtp_session_rtp_parse(RtpSession *session, mblk_t *mp, uint32_t local_str_ts, struct sockaddr *addr, socklen_t addrlen);
 bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int idx, int k, int n, uint32_t user_ts, uint16_t min_seq){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
 	Block *block_info = (Block *)malloc(k * sizeof(Block));
@@ -234,7 +235,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 
 	for(decidx=received_source; decidx<received_count; decidx++) {
 		int pkt_size = *((int*)block_info[decidx].data);
-		char *pkt_data = block_info[decidx].data+sizeof(int);
+		unsigned char *pkt_data = block_info[decidx].data+sizeof(int);
 		mblk_t *dec_rtp;
 		rtp_header_t *rtp_header;
 
@@ -246,8 +247,8 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		dec_rtp = reconstruct_rtp_packet(pkt_data, pkt_size);
 		rtp_header = (rtp_header_t *)dec_rtp->b_rptr;
 		if(dec_rtp != NULL){
-			if(rtp_session_rtp_parse(obj->parent.session,dec_rtp,user_ts,NULL,0))
-				ortp_message("RSDecoder: recover and push rtp=%d", rtp_header->seq_number);
+			rtp_session_rtp_parse(obj->parent.session,dec_rtp,user_ts,NULL,0);
+			ortp_message("RSDecoder: recover and push rtp=%d", rtp_header->seq_number);
 		}
 	}
 
@@ -268,7 +269,7 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 
 	if(header->seq_number+1 >= rtcp_FEC_get_seq(rtcp)){
 		uint16_t currseq = rtcp_FEC_get_seq(rtcp);
-		simple_fec_driver_RS_decode(obj, &obj->parent.session->rtp.rq, currseq, rtcp_FEC_get_source_num(rtcp), 
+		simple_fec_driver_RS_decode((MSFecDriver *)obj, &obj->parent.session->rtp.rq, currseq, rtcp_FEC_get_source_num(rtcp), 
 			rtcp_FEC_get_block_size(rtcp), user_ts, header->seq_number);
 
 		while(rtcp != NULL && (rtcp_FEC_get_seq(rtcp) == currseq)) {
@@ -335,7 +336,7 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 	//ortp_message("SimpleFecDriver: process rtcp, driver[%p]", obj);
 
 	mblk_t *duprtcp;
-	char *s;
+	unsigned char *s;
 	int len;
 	rtcp_FEC_get_data(rtcp,&s,&len);
 	ortp_message("SimpleFecDriver: fec packet: (%d,%d),(%d,%d), data_len=%d", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
@@ -366,7 +367,7 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
 	MSSimpleFecDriver *obj = ortp_new0(MSSimpleFecDriver, 1);
 	obj->parent.session = session;
 	obj->parent.desc = &simplefecdriverdesc;
-	obj->source_packets = (char **)malloc(100 * sizeof(char*));
+	obj->source_packets = (unsigned char **)malloc(100 * sizeof(char*));
 	obj->source_curr = 0;
 	obj->last_ts = 0;
 	obj->block_max = 0;

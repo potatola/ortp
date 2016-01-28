@@ -28,6 +28,7 @@
 #include "ortp/ortp.h"
 #include "utils.h"
 #include "ortp/rtpsession.h"
+#include "ortp/fecdriver.h"
 #include "rtpsession_priv.h"
 
 #if (_WIN32_WINNT >= 0x0600)

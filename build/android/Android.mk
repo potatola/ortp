@@ -25,6 +25,9 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := libortp
 
+LIB_PATH := $(LOCAL_PATH)/build/win32native/liblonghair.lib
+
+LOCAL_LDLIBS += **-L**$(LIB_PATH) -lxtract
 
 LOCAL_SRC_FILES := \
 	src/avprofile.c \

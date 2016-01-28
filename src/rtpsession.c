@@ -25,6 +25,7 @@
 #include "ortp/ortp.h"
 #include "ortp/telephonyevents.h"
 #include "ortp/rtcp.h"
+#include "ortp/fecdriver.h"
 #include "jitterctl.h"
 #include "scheduler.h"
 #include "utils.h"

@@ -456,7 +456,7 @@ uint16_t rtcp_FEC_get_index(const mblk_t *m);
 uint16_t rtcp_FEC_get_block_size(const mblk_t *m);
 uint16_t rtcp_FEC_get_source_num(const mblk_t *m);
 /* retrieve the data. when returning, data points directly into the mblk_t */
-void rtcp_FEC_get_data(const mblk_t *m, char **data, int *len);
+void rtcp_FEC_get_data(const mblk_t *m, unsigned char **data, int *len);
 
 /*APP accessors */
 ORTP_PUBLIC bool_t rtcp_is_APP(const mblk_t *m);
