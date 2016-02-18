@@ -971,7 +971,7 @@ __rtp_session_sendm_with_ts (RtpSession * session, mblk_t *mp, uint32_t packet_t
 		ortp_global_stats.packet_sent+=(int)session->duplication_left;;
 
         //Fec process
-        ms_fec_driver_outgoing_rtp(session->fec, mp);
+        //ms_fec_driver_outgoing_rtp(session->fec, mp);
 	}
 
 	while (session->duplication_left>=1.f) {
@@ -1217,7 +1217,7 @@ rtp_session_recvm_with_ts (RtpSession * session, uint32_t user_ts)
 		rtp = (rtp_header_t *) mp->b_rptr;
 		packet_ts=rtp->timestamp;
 		
-		ms_fec_driver_incoming_rtp(session->fec, mp, user_ts);
+		//ms_fec_driver_incoming_rtp(session->fec, mp, user_ts);
 		ortp_debug("Returning mp with ts=%i", packet_ts);
 		/* check for payload type changes */
 		if (session->rcv.pt != rtp->paytype)

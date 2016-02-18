@@ -54,7 +54,6 @@ void ms_fec_driver_destroy(MSFecDriver * obj){
 /**
  * simple fec driver
 **/
-FILE *fout, *fin;
 
 typedef struct _RtpSession RtpSession;
 void rtp_session_send_rtcp_FEC(RtpSession *session, uint8_t subtype, uint16_t seq, uint16_t index, uint16_t block_size, uint16_t source_num, const uint8_t *data, int datalen);
@@ -372,9 +371,6 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
 	obj->last_ts = 0;
 	obj->block_max = 0;
 	qinit(&obj->recv_fec);
-
-	fout = fopen("/sdcard/testout.txt", "w");
-	fin = fopen("/sdcard/testin.txt", "w");
 
 	if (cauchy_256_init()) {
         // Wrong static library
