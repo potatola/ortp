@@ -191,7 +191,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			block_info[received_count].row = seq-idx;
 			
 			received_count ++;
-			ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+			//ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -209,8 +209,8 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			rtcp_FEC_get_data(fec,&block_info[received_count].data,&packet_size);
 			block_info[received_count].row = rtcp_FEC_get_source_num(fec)+rtcp_FEC_get_index(fec);
 
-			ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
-				received_count, block_info[received_count].row);
+			//ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
+			//	received_count, block_info[received_count].row);
 			
 			received_count ++;
 
@@ -373,8 +373,8 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
 	obj->block_max = 0;
 	qinit(&obj->recv_fec);
 
-	fout = fopen("D:\\testout.txt", "w");
-	fin = fopen("D:\\testin.txt", "w");
+	fout = fopen("/sdcard/testout.txt", "w");
+	fin = fopen("/sdcard/testin.txt", "w");
 
 	if (cauchy_256_init()) {
         // Wrong static library

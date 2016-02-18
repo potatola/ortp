@@ -23,11 +23,15 @@
 LOCAL_PATH:= $(call my-dir)/../../
 include $(CLEAR_VARS)
 
+LOCAL_MODULE := longhair
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/liblonghair.a
+include $(PREBUILT_STATIC_LIBRARY)
+
+include $(CLEAR_VARS)
+
 LOCAL_MODULE := libortp
 
-LIB_PATH := $(LOCAL_PATH)/build/win32native/liblonghair.lib
-
-LOCAL_LDLIBS += **-L**$(LIB_PATH) -lxtract
+LOCAL_STATIC_LIBRARIES := longhair
 
 LOCAL_SRC_FILES := \
 	src/avprofile.c \
@@ -46,6 +50,7 @@ LOCAL_SRC_FILES := \
 	src/rtcp_xr.c \
 	src/rtcpparse.c \
 	src/rtpparse.c \
+	src/fecdriver.c \
 	src/rtpprofile.c \
 	src/rtpsession.c \
 	src/rtpsession_inet.c \
