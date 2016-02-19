@@ -48,6 +48,9 @@ bool_t ms_fec_driver_flush(MSFecDriver * obj){
 
 // TODO: not called yet
 void ms_fec_driver_destroy(MSFecDriver * obj){
+	if(obj->desc->uinit) {
+		obj->desc->uinit(obj);
+	}
 	ortp_free(obj);
 }
 
@@ -103,7 +106,9 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	int msg_size = msgdsize(rtp);
 	
 	//ortp_message("SimpleFecDriver: outgoing rtp, seq=%d, ts=%d", rtp_seq, rtp_ts);
-	fprintf(log_file, "SimpleFecDriver: outgoing rtp, seq=%d, ts=%d", rtp_seq, rtp_ts);
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "SimpleFecDriver: outgoing rtp, seq=%d, ts=%d\n", rtp_seq, rtp_ts);
+	fclose(log_file);
 	if(obj->fec_rate == 0) return TRUE;
 
 	//an int indicating size of the packet is added at head of the stream
@@ -114,7 +119,9 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	obj->source_curr ++;
 	
 	//ortp_message("GYF: source cur=%d, num=%d, ts=%d, last_ts=%d", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
-	fprintf(log_file, "GYF: source cur=%d, num=%d, ts=%d, last_ts=%d", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "GYF: source cur=%d, num=%d, ts=%d, last_ts=%d\n", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
+	fclose(log_file);
 	if(rtp_ts != obj->last_ts) {
 		obj->last_ts = rtp_ts;
 
@@ -125,7 +132,9 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
 			int redundancy_num = (obj->source_curr*obj->fec_rate/100);
 			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
-			fprintf(log_file, "RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSEncoder: seq=%d, source_num=%d, redun_num=%d\n", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
+			fclose(log_file);
 			redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
 			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, redundancy, redundancy_size)) {
@@ -134,7 +143,9 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			}
 
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
-			fprintf(log_file, "GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "GYF: FEC encode succeed, seq=%d, size=%d\n", rtp_seq-obj->source_curr+1, redundancy_size);
+			fclose(log_file);
 			for(; fec_index < redundancy_num; fec_index++) {
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
 					(uint16_t)(obj->source_curr+redundancy_num), (uint16_t)obj->source_curr, (uint8_t *)redundancy, redundancy_size);
@@ -359,12 +370,18 @@ bool_t simple_fec_driver_flush(MSFecDriver * baseobj){
 	return TRUE;
 }
 
+void simple_fec_driver_uinit(MSFecDriver * baseobj){
+	//ortp_message("SimpleFecDriver: uinit");
+}
+
+
 static MSFecDriverDesc simplefecdriverdesc={
 	simple_fec_driver_outgoing_rtp,
 	simple_fec_driver_incoming_rtp,
 	simple_fec_driver_process_rtcp,
 	simple_fec_driver_flush,
-	simple_fec_driver_set_rate
+	simple_fec_driver_set_rate,
+	simple_fec_driver_uinit
 };
 
 MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
@@ -378,16 +395,8 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
 	qinit(&obj->recv_fec);
 
 	log_file = fopen("sdcard/test1.txt", "w+");
-	if(log_file == NULL) {
-		    log_file = fopen("mnt/sdcard/test1.txt", "w+");
-		    if(log_file == NULL) {
-		            log_file = fopen("storage/sdcard/test1.txt", "w+");
-		    }
-	}
-
-	if(log_file != NULL) {
-		fprintf(log_file, "%s\n", "Open log file, simple fec driver inited.");
-	}
+	fprintf(log_file, "%s\n", "Open log file, simple fec driver inited.");
+	fclose(log_file);
 
 	if (cauchy_256_init()) {
         // Wrong static library
@@ -397,3 +406,4 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
 	
 	return (MSFecDriver *)obj;
 }
+

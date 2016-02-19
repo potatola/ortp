@@ -948,6 +948,7 @@ __rtp_session_sendm_with_ts (RtpSession * session, mblk_t *mp, uint32_t packet_t
 	if (rtp->version == 0) {
 		/* We are probably trying to send a STUN packet so don't change its content. */
 	} else {
+		FILE* log_file;
 		rtp->timestamp=packet_ts;
 		if (rtp_profile_is_telephone_event(session->snd.profile, rtp->paytype)){
 			rtp->seq_number = session->rtp.snd_seq;
@@ -971,6 +972,9 @@ __rtp_session_sendm_with_ts (RtpSession * session, mblk_t *mp, uint32_t packet_t
 		ortp_global_stats.packet_sent+=(int)session->duplication_left;;
 
         //Fec process
+		log_file = fopen("sdcard/test1.txt", "a+");
+		fprintf(log_file, "rtp sending, ts=%d, seq=%d, fec=%d\n", rtp->timestamp, rtp->seq_number, session->fec!=NULL);
+		fclose(log_file);
         //ms_fec_driver_outgoing_rtp(session->fec, mp);
 	}
 

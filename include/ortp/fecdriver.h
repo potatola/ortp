@@ -21,6 +21,7 @@ struct _MSFecDriverDesc{
     bool_t (*process_rtcp)(MSFecDriver *obj, mblk_t *rtcp);
     bool_t (*flush)(MSFecDriver *obj);
     bool_t (*set_rate)(MSFecDriver *obj, uint16_t block_size, uint16_t source_num);
+    void (*uinit)(MSFecDriver *obj);
 };
 
 struct _MSFecDriver{
