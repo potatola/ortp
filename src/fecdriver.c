@@ -106,9 +106,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	int msg_size = msgdsize(rtp);
 	
 	//ortp_message("SimpleFecDriver: outgoing rtp, seq=%d, ts=%d", rtp_seq, rtp_ts);
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "SimpleFecDriver: outgoing rtp, seq=%d, ts=%d\n", rtp_seq, rtp_ts);
-	fclose(log_file);
 	if(obj->fec_rate == 0) return TRUE;
 
 	//an int indicating size of the packet is added at head of the stream
@@ -119,9 +116,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	obj->source_curr ++;
 	
 	//ortp_message("GYF: source cur=%d, num=%d, ts=%d, last_ts=%d", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "GYF: source cur=%d, num=%d, ts=%d, last_ts=%d\n", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
-	fclose(log_file);
 	if(rtp_ts != obj->last_ts) {
 		obj->last_ts = rtp_ts;
 
@@ -195,6 +189,9 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	int decidx;
 
 	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d", idx, idx+k-1, k, n);
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "RSDecoder: try decode block (%d~%d),k=%d,n=%d\n", idx, idx+k-1, k, n);
+	fclose(log_file);
 
 	while(rtp != NULL && rtp != &sources->_q_stopper) {
 		seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
@@ -207,6 +204,9 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			
 			received_count ++;
 			//ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
+			fclose(log_file);
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -239,6 +239,9 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 
 	if(received_count < k) {
 		ortp_message("RSDecoder: decode failed, no enough packets");
+		log_file = fopen("sdcard/test1.txt", "a+");
+		fprintf(log_file, "RSDecoder: decode failed, no enough packets\n");
+		fclose(log_file);
 		return FALSE;
 	}
 
@@ -247,6 +250,9 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
         return FALSE;
     }
 	ortp_message("RSDecoder: decode succeed, seq=%d, size=%d", idx, packet_size);
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "RSDecoder: decode succeed, seq=%d, size=%d\n", idx, packet_size);
+	fclose(log_file);
 
 	for(decidx=received_source; decidx<received_count; decidx++) {
 		int pkt_size = *((int*)block_info[decidx].data);
@@ -264,6 +270,9 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		if(dec_rtp != NULL){
 			rtp_session_rtp_parse(obj->parent.session,dec_rtp,user_ts,NULL,0);
 			ortp_message("RSDecoder: recover and push rtp=%d", rtp_header->seq_number);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: recover and push rtp=%d\n", rtp_header->seq_number);
+			fclose(log_file);
 		}
 	}
 
@@ -278,9 +287,18 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 
 	mblk_t * rtcp = peekq(&obj->recv_fec);
 
-	if(rtcp == NULL) return FALSE;
+	if(rtcp == NULL){
+		log_file = fopen("sdcard/test1.txt", "a+");
+		fprintf(log_file, "SimpleFecDriver: retrieved seq=%d, fec seq=NULL\n", header->seq_number);
+		fclose(log_file);
+
+		return FALSE;
+	}
 	
 	//ortp_message("SimpleFecDriver: retrieved seq=%d, fec seq=%d", header->seq_number, rtcp_FEC_get_seq(rtcp));
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "SimpleFecDriver: retrieved seq=%d, fec seq=%d\n", header->seq_number, rtcp_FEC_get_seq(rtcp));
+	fclose(log_file);
 
 	if(header->seq_number+1 >= rtcp_FEC_get_seq(rtcp)){
 		uint16_t currseq = rtcp_FEC_get_seq(rtcp);
@@ -289,6 +307,10 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 
 		while(rtcp != NULL && (rtcp_FEC_get_seq(rtcp) == currseq)) {
 			ortp_message("SimpleFecDriver: deal and remove fec(%d,%d), left size=%d", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "SimpleFecDriver: deal and remove fec(%d,%d), left size=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
+
+			fclose(log_file);
 			remq(&obj->recv_fec, rtcp);
 			ortp_free(rtcp);
 
@@ -354,8 +376,12 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 	unsigned char *s;
 	int len;
 	rtcp_FEC_get_data(rtcp,&s,&len);
-	ortp_message("SimpleFecDriver: fec packet: (%d,%d),(%d,%d), data_len=%d", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
+	ortp_message("SimpleFecDriver: recv fec packet: (%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
 		rtcp_FEC_get_source_num(rtcp), len);
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "SimpleFecDriver: recv fec packet: (%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
+		rtcp_FEC_get_source_num(rtcp), len);
+	fclose(log_file);
 
 	// TODO: free dumrtcp
 	duprtcp = dupmsg(rtcp);
@@ -371,7 +397,11 @@ bool_t simple_fec_driver_flush(MSFecDriver * baseobj){
 }
 
 void simple_fec_driver_uinit(MSFecDriver * baseobj){
+	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
 	//ortp_message("SimpleFecDriver: uinit");
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "simple fec driver destroyed. format=%d\n", obj->parent.format);
+	fclose(log_file);
 }
 
 
@@ -384,18 +414,28 @@ static MSFecDriverDesc simplefecdriverdesc={
 	simple_fec_driver_uinit
 };
 
-MSFecDriver * ms_simple_fec_driver_new(RtpSession *session){
+static MSFecDriverDesc mutefecdriverdesc={
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	simple_fec_driver_uinit
+};
+
+MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format){
 	MSSimpleFecDriver *obj = ortp_new0(MSSimpleFecDriver, 1);
 	obj->parent.session = session;
-	obj->parent.desc = &simplefecdriverdesc;
+	obj->parent.format = format;
+	obj->parent.desc = format == 1 ? &simplefecdriverdesc : &mutefecdriverdesc;
 	obj->source_packets = (unsigned char **)malloc(100 * sizeof(char*));
 	obj->source_curr = 0;
 	obj->last_ts = 0;
 	obj->block_max = 0;
 	qinit(&obj->recv_fec);
 
-	log_file = fopen("sdcard/test1.txt", "w+");
-	fprintf(log_file, "%s\n", "Open log file, simple fec driver inited.");
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "simple fec driver inited. format=%d\n", format);
 	fclose(log_file);
 
 	if (cauchy_256_init()) {

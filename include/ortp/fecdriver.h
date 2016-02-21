@@ -27,6 +27,7 @@ struct _MSFecDriverDesc{
 struct _MSFecDriver{
     MSFecDriverDesc *desc;
 	RtpSession *session;
+	int format;
 };
 
 ORTP_PUBLIC bool_t ms_fec_driver_outgoing_rtp(MSFecDriver *obj, mblk_t *rtp);
@@ -39,7 +40,7 @@ ORTP_PUBLIC void ms_fec_driver_destroy(MSFecDriver *obj);
 /**
  * my fec object
 **/
-ORTP_PUBLIC MSFecDriver * ms_simple_fec_driver_new(RtpSession *session);
+ORTP_PUBLIC MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format);
 
 
 #ifdef __cplusplus
@@ -47,3 +48,4 @@ ORTP_PUBLIC MSFecDriver * ms_simple_fec_driver_new(RtpSession *session);
 #endif
 
 #endif
+
