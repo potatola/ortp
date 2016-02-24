@@ -1193,7 +1193,7 @@ rtp_session_recvm_with_ts (RtpSession * session, uint32_t user_ts)
 
 	/*calculate the stream timestamp from the user timestamp */
 	//GYF add delay for FEC decode test
-	ts = -10000 + jitter_control_get_compensated_timestamp(&session->rtp.jittctl,user_ts);
+	ts = -8000 + jitter_control_get_compensated_timestamp(&session->rtp.jittctl,user_ts);
 	if (session->rtp.jittctl.enabled==TRUE){
 		if (session->permissive)
 			mp = rtp_getq_permissive(&session->rtp.rq, ts,&rejected);

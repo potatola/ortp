@@ -121,6 +121,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 
 		if(obj->source_curr >= obj->source_num) {
 			//try decode
+			struct timeval ts, te;
 			char *redundancy;
 			int fec_index = 0;
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
@@ -129,6 +130,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "RSEncoder: seq=%d, source_num=%d, redun_num=%d\n", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
 			fclose(log_file);
+			ortp_gettimeofday(&ts,NULL);
 			redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
 			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, redundancy, redundancy_size)) {
@@ -136,9 +138,10 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 				return FALSE;
 			}
 
+			ortp_gettimeofday(&te,NULL);
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
 			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "GYF: FEC encode succeed, seq=%d, size=%d\n", rtp_seq-obj->source_curr+1, redundancy_size);
+			fprintf(log_file, "GYF: FEC encode succeed, seq=%d, size=%d, time=%ldus\n", rtp_seq-obj->source_curr+1, redundancy_size, 1000000 * (te.tv_sec-ts.tv_sec) + (te.tv_usec-ts.tv_usec));
 			fclose(log_file);
 			for(; fec_index < redundancy_num; fec_index++) {
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
@@ -204,9 +207,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			
 			received_count ++;
 			//ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
-			fclose(log_file);
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -379,7 +379,7 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 	ortp_message("SimpleFecDriver: recv fec packet: (%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
 		rtcp_FEC_get_source_num(rtcp), len);
 	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "SimpleFecDriver: recv fec packet: (%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
+	fprintf(log_file, "SimpleFecDriver: recv fec packet: (%d-%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_seq(rtcp)+rtcp_FEC_get_source_num(rtcp)-1, rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
 		rtcp_FEC_get_source_num(rtcp), len);
 	fclose(log_file);
 
