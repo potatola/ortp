@@ -1153,7 +1153,7 @@ int rtp_session_rtp_send (RtpSession * session, mblk_t * m){
 	FILE* log_file;
 
 	hdr = (rtp_header_t *) m->b_rptr;
-	if(hdr->seq_number%10 == 20){
+	if(hdr->seq_number%10 == 2){
 		log_file = fopen("sdcard/test1.txt", "a+");
 		fprintf(log_file, "rtp send, drop seq=%d\n", hdr->seq_number);
 		fclose(log_file);

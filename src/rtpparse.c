@@ -188,12 +188,6 @@ void rtp_session_rtp_parse(RtpSession *session, mblk_t *mp, uint32_t local_str_t
 		freemsg(mp);
 		return;
 	}
-	{
-		FILE* log_file;
-		log_file = fopen("sdcard/test1.txt", "a+");
-		fprintf(log_file, "recv rtp, seq=%d, ts=%d\n", rtp->seq_number, rtp->timestamp);
-		fclose(log_file);
-	}
 
 #ifndef PERF
 	/* Write down the last RTP/RTCP packet reception time. */

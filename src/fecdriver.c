@@ -267,9 +267,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		if(dec_rtp != NULL){
 			rtp_session_rtp_parse(obj->parent.session,dec_rtp,user_ts,NULL,0);
 			ortp_message("RSDecoder: recover and push rtp=%d", rtp_header->seq_number);
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSDecoder: recover and push rtp=%d\n", rtp_header->seq_number);
-			fclose(log_file);
 		}
 	}
 
@@ -285,17 +282,10 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 	mblk_t * rtcp = peekq(&obj->recv_fec);
 
 	if(rtcp == NULL){
-		log_file = fopen("sdcard/test1.txt", "a+");
-		fprintf(log_file, "SimpleFecDriver: retrieved seq=%d, fec seq=NULL\n", header->seq_number);
-		fclose(log_file);
-
 		return FALSE;
 	}
 	
 	//ortp_message("SimpleFecDriver: retrieved seq=%d, fec seq=%d", header->seq_number, rtcp_FEC_get_seq(rtcp));
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "SimpleFecDriver: retrieved seq=%d, fec seq=%d\n", header->seq_number, rtcp_FEC_get_seq(rtcp));
-	fclose(log_file);
 
 	if(header->seq_number+2 >= rtcp_FEC_get_seq(rtcp)){
 		uint16_t currseq = rtcp_FEC_get_seq(rtcp);
@@ -304,10 +294,6 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 
 		while(rtcp != NULL && (rtcp_FEC_get_seq(rtcp) == currseq)) {
 			ortp_message("SimpleFecDriver: deal and remove fec(%d,%d), left size=%d", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "SimpleFecDriver: deal and remove fec(%d,%d), left size=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
-
-			fclose(log_file);
 			remq(&obj->recv_fec, rtcp);
 			ortp_free(rtcp);
 
@@ -375,10 +361,6 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 	rtcp_FEC_get_data(rtcp,&s,&len);
 	ortp_message("SimpleFecDriver: recv fec packet: (%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
 		rtcp_FEC_get_source_num(rtcp), len);
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "SimpleFecDriver: recv fec packet: (%d-%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_seq(rtcp)+rtcp_FEC_get_source_num(rtcp)-1, rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
-		rtcp_FEC_get_source_num(rtcp), len);
-	fclose(log_file);
 
 	// TODO: free dumrtcp
 	duprtcp = dupmsg(rtcp);
