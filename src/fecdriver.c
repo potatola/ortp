@@ -195,6 +195,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	while(rtp != NULL && rtp != &sources->_q_stopper) {
 		seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
 		//ortp_message("GYF: seeing rtp seq=%d", seq);
+		if(seq < idx) {
+			rtp = rtp->b_next;
+			continue;
+		}
 		if(seq >= end_idx) break;
 		else {
 			mblk_t *duprtp = dupmsg(rtp);
