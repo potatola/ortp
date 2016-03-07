@@ -952,7 +952,6 @@ __rtp_session_sendm_with_ts (RtpSession * session, mblk_t *mp, uint32_t packet_t
 	if (rtp->version == 0) {
 		/* We are probably trying to send a STUN packet so don't change its content. */
 	} else {
-		FILE* log_file;
 		rtp->timestamp=packet_ts;
 		if (rtp_profile_is_telephone_event(session->snd.profile, rtp->paytype)){
 			rtp->seq_number = session->rtp.snd_seq;
