@@ -301,7 +301,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	return TRUE;
 }
 
-bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32_t user_ts){
+bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint32_t user_ts){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
 	
 	rtp_header_t *header = (rtp_header_t *)rtp->b_rptr;
@@ -322,6 +322,9 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 
 		while(rtcp != NULL && (rtcp_FEC_get_seq(rtcp) == currseq)) {
 			ortp_message("SimpleFecDriver: deal and remove fec(%d,%d), left size=%d", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "SimpleFecDriver: deal and remove fec(%d,%d), left size=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
+			fclose(log_file);
 			remq(&obj->recv_fec, rtcp);
 			ortp_free(rtcp);
 
@@ -333,12 +336,12 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj,mblk_t * rtp, uint32
 }
 
 bool_t rtcp_fec_greater_than(uint16_t seq, uint16_t tmpseq, uint16_t idx, uint16_t tmpidx){
-	if(seq > tmpseq && idx > tmpidx) return FALSE;
-	return TRUE;
+	if(seq > tmpseq || (seq == tmpseq && idx > tmpidx)) return TRUE;
+	return FALSE;
 }
 
 //insert rtcp packet
-static int simple_fec_driver_rtcp_putq(queue_t *q, mblk_t *mp)
+static int simple_fec_driver_rtcp_putq_inc(queue_t *q, mblk_t *mp)
 {
 	mblk_t *tmp;
 	uint16_t seq = rtcp_FEC_get_seq(mp);
@@ -351,7 +354,7 @@ static int simple_fec_driver_rtcp_putq(queue_t *q, mblk_t *mp)
 		putq(q,mp);
 		return 0;
 	}
-	tmp=qlast(q);
+	tmp=qbegin(q);
 	/* we look at the queue from bottom to top, because enqueued packets have a better chance
 	to be enqueued at the bottom, since there are surely newer */
 	while (!qend(q,tmp))
@@ -367,15 +370,17 @@ static int simple_fec_driver_rtcp_putq(queue_t *q, mblk_t *mp)
 			freemsg(mp);
 			return -1;
 		}else if (rtcp_fec_greater_than(seq, tmpseq, index, tmpindex)){
-
-			insq(q,tmp->b_next,mp);
+			tmp = tmp->b_next;
+			continue;
+		}
+		else {
+			insq(q, tmp, mp);
 			return 0;
 		}
-		tmp=tmp->b_prev;
 	}
 	/* this packet is the oldest, it has to be
 	placed on top of the queue */
-	insq(q,qfirst(q),mp);
+	putq(q, mp);
 	return 0;
 }
 
@@ -396,7 +401,7 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 
 	// TODO: free dumrtcp
 	duprtcp = dupmsg(rtcp);
-	simple_fec_driver_rtcp_putq(&obj->recv_fec, duprtcp);
+	simple_fec_driver_rtcp_putq_inc(&obj->recv_fec, duprtcp);
 	
 	return TRUE;
 }
