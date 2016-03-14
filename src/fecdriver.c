@@ -65,6 +65,7 @@ void rtp_session_send_rtcp_FEC(RtpSession *session, uint8_t subtype, uint16_t se
 typedef struct _MSSimpleFecDriver{
 	MSFecDriver parent;
 	unsigned char ** source_packets;
+	char *redundancy;
 	uint16_t block_max, block_size, source_num, source_curr, fec_rate;
 	uint32_t last_ts;
 	queue_t recv_fec;	//rtcp with fec data
@@ -125,19 +126,31 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 		if(obj->source_curr >= obj->source_num) {
 			//try encode
 			struct timeval ts, te;
-			char *redundancy;
 			int fec_index = 0;
+			char *redundancy;
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
 			int redundancy_num = (obj->source_curr*obj->fec_rate/100);
+			redundancy_num = 2;
 			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
-			redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
+			free(obj->redundancy);
+			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
-			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, redundancy, redundancy_size)) {
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSEncoder: before\n");
+			fclose(log_file);
+			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, obj->redundancy, redundancy_size)) {
 				ortp_message("RSEncoder: ENCODE ERROR!");
+				log_file = fopen("sdcard/test1.txt", "a+");
+				fprintf(log_file, "RSEncoder: ENCODE ERROR!\n");
+				fclose(log_file);
 				return FALSE;
 			}
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSEncoder: after\n");
+			fclose(log_file);
 
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
+			redundancy = obj->redundancy;
 			for(; fec_index < redundancy_num; fec_index++) {
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
 					(uint16_t)(obj->source_curr+redundancy_num), (uint16_t)obj->source_curr, (uint8_t *)redundancy, redundancy_size);
@@ -205,6 +218,9 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			
 			received_count ++;
 			//ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
+			fclose(log_file);
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -224,6 +240,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 
 			//ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
 			//	received_count, block_info[received_count].row);
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: fec packet=(%d,%d), num=%d, row=%d\n", fec_seq, rtcp_FEC_get_index(fec), 
+				received_count, block_info[received_count].row);
+			fclose(log_file);
 			
 			received_count ++;
 
@@ -256,7 +276,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	ortp_gettimeofday(&te,NULL);
 	ortp_message("RSDecoder: decode succeed, seq=%d, size=%d", idx, packet_size);
 	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "RSDecoder: decode succeed, seq=%d, size=%d, time=%ldus\n", idx, packet_size, 1000000 * (te.tv_sec-ts.tv_sec) + (te.tv_usec-ts.tv_usec));
+	fprintf(log_file, "RSDecoder: decode succeed, time=%ldus\n", 1000000 * (te.tv_sec-ts.tv_sec) + (te.tv_usec-ts.tv_usec));
 	fclose(log_file);
 
 	for(decidx=received_source; decidx<received_count; decidx++) {
@@ -420,6 +440,7 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format){
 	obj->parent.format = format;
 	obj->parent.desc = format == 1 ? &simplefecdriverdesc : &mutefecdriverdesc;
 	obj->source_packets = (unsigned char **)malloc(100 * sizeof(char*));
+	obj->redundancy = NULL;
 	obj->source_curr = 0;
 	obj->last_ts = 0;
 	obj->block_max = 0;

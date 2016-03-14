@@ -21,17 +21,12 @@
 
 
 LOCAL_PATH:= $(call my-dir)/../../
-include $(CLEAR_VARS)
-
-LOCAL_MODULE := longhair
-LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/liblonghair.a
-include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := libortp
 
-LOCAL_STATIC_LIBRARIES := longhair
+#LOCAL_STATIC_LIBRARIES := longhair
 
 LOCAL_SRC_FILES := \
 	src/avprofile.c \
@@ -60,7 +55,10 @@ LOCAL_SRC_FILES := \
 	src/sessionset.c \
 	src/str_utils.c	\
 	src/telephonyevents.c \
-	src/utils.c
+	src/utils.c\
+	src/fec/cauchy_256.cpp\
+	src/fec/MemSwap.cpp\
+	src/fec/MemXOR.cpp\
 
 LOCAL_CFLAGS += \
 	-DORTP_INET6 \
