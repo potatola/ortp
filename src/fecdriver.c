@@ -94,9 +94,11 @@ bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint1
 	obj->source_num = source_num;
 	obj->fec_rate = fec_rate;
 	ortp_message("FecDriver: fec rate set to (%d, %d%%)", source_num, fec_rate);
+#if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "FecDriver: fec rate set to (%d, %d%%)\n", source_num, fec_rate);
 	fclose(log_file);
+#endif
 	return TRUE;
 }
 
@@ -135,23 +137,33 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			free(obj->redundancy);
 			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
+#if defined(ANDROID)
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "RSEncoder: before\n");
 			fclose(log_file);
+#endif
 			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, obj->redundancy, redundancy_size)) {
 				ortp_message("RSEncoder: ENCODE ERROR!");
+#if defined(ANDROID)
 				log_file = fopen("sdcard/test1.txt", "a+");
 				fprintf(log_file, "RSEncoder: ENCODE ERROR!\n");
 				fclose(log_file);
+#endif
 				return FALSE;
 			}
+#if defined(ANDROID)
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "RSEncoder: after\n");
 			fclose(log_file);
+#endif
 
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
 			redundancy = obj->redundancy;
 			for(; fec_index < redundancy_num; fec_index++) {
+				if(fec_index == 0) {
+					redundancy += redundancy_size;
+					continue;
+				}
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
 					(uint16_t)(obj->source_curr+redundancy_num), (uint16_t)obj->source_curr, (uint8_t *)redundancy, redundancy_size);
 				redundancy += redundancy_size;
@@ -200,7 +212,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	int decidx;
 	struct timeval ts, te;
 
-	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d", idx, idx+k-1, k, n);
 	ortp_gettimeofday(&ts,NULL);
 
 	while(rtp != NULL && rtp != &sources->_q_stopper) {
@@ -217,10 +228,12 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			block_info[received_count].row = seq-idx;
 			
 			received_count ++;
-			//ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+			ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+#if defined(ANDROID)
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
 			fclose(log_file);
+#endif
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -237,15 +250,16 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		else {
 			rtcp_FEC_get_data(fec,&block_info[received_count].data,&packet_size);
 			block_info[received_count].row = rtcp_FEC_get_source_num(fec)+rtcp_FEC_get_index(fec);
-
-			//ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
-			//	received_count, block_info[received_count].row);
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSDecoder: fec packet=(%d,%d), num=%d, row=%d\n", fec_seq, rtcp_FEC_get_index(fec), 
-				received_count, block_info[received_count].row);
-			fclose(log_file);
 			
 			received_count ++;
+			ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
+				received_count, block_info[received_count-1].row);
+#if defined(ANDROID)
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: fec packet=(%d,%d), num=%d, row=%d\n", fec_seq, rtcp_FEC_get_index(fec), 
+				received_count, block_info[received_count-1].row);
+			fclose(log_file);
+#endif
 
 			if(received_count >= k) {
 				break;
@@ -257,27 +271,37 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 
 	if(received_count < k) {
 		ortp_message("RSDecoder: decode failed, no enough packets");
+#if defined(ANDROID)
 		log_file = fopen("sdcard/test1.txt", "a+");
 		fprintf(log_file, "RSDecoder: decode failed, no enough packets\n");
 		fclose(log_file);
+#endif
 		return FALSE;
 	}
+	
+	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d", idx, idx+k-1, k, n);
+#if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "RSDecoder: try decode block (%d~%d),k=%d,n=%d\n", idx, idx+k-1, k, n);
 	fclose(log_file);
+#endif
 
 	if (cauchy_256_decode(k, n-k, block_info, packet_size)) {
         // Decoding should never fail - indicates input is invalid
+#if defined(ANDROID)
 		log_file = fopen("sdcard/test1.txt", "a+");
 		fprintf(log_file, "RSDecoder: decode failed, indicates input is invalid\n");
 		fclose(log_file);
+#endif
         return FALSE;
     }
 	ortp_gettimeofday(&te,NULL);
-	ortp_message("RSDecoder: decode succeed, seq=%d, size=%d", idx, packet_size);
+	ortp_message("RSDecoder: decode succeed");
+#if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "RSDecoder: decode succeed, time=%ldus\n", 1000000 * (te.tv_sec-ts.tv_sec) + (te.tv_usec-ts.tv_usec));
 	fclose(log_file);
+#endif
 
 	for(decidx=received_source; decidx<received_count; decidx++) {
 		int pkt_size = *((int*)block_info[decidx].data);
@@ -286,6 +310,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		rtp_header_t *rtp_header;
 
 		//min_seq have been dequeued, packets earlier than is should be discarded
+		ortp_message("RSDecoder: seq=%d, size=%d", ((rtp_header_t *)pkt_data)->seq_number, pkt_size);
 		if(((rtp_header_t *)pkt_data)->seq_number <= min_seq){
 			ortp_message("RSDecoder: overtime packet seq=%d", ((rtp_header_t *)pkt_data)->seq_number);
 			continue;
@@ -322,9 +347,11 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint3
 
 		while(rtcp != NULL && (rtcp_FEC_get_seq(rtcp) == currseq)) {
 			ortp_message("SimpleFecDriver: deal and remove fec(%d,%d), left size=%d", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
+#if defined(ANDROID)
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "SimpleFecDriver: deal and remove fec(%d,%d), left size=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), obj->recv_fec.q_mcount);
 			fclose(log_file);
+#endif
 			remq(&obj->recv_fec, rtcp);
 			ortp_free(rtcp);
 
@@ -394,10 +421,12 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 	rtcp_FEC_get_data(rtcp,&s,&len);
 	ortp_message("SimpleFecDriver: recv fec packet: (%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
 		rtcp_FEC_get_source_num(rtcp), len);
+#if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "SimpleFecDriver: recv fec packet: (%d-%d,%d),(%d,%d), data_len=%d\n", rtcp_FEC_get_seq(rtcp), rtcp_FEC_get_seq(rtcp)+rtcp_FEC_get_source_num(rtcp)-1, rtcp_FEC_get_index(rtcp), rtcp_FEC_get_block_size(rtcp), 
 		rtcp_FEC_get_source_num(rtcp), len);
 	fclose(log_file);
+#endif
 
 	// TODO: free dumrtcp
 	duprtcp = dupmsg(rtcp);
@@ -415,9 +444,11 @@ bool_t simple_fec_driver_flush(MSFecDriver * baseobj){
 void simple_fec_driver_uinit(MSFecDriver * baseobj){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
 	//ortp_message("SimpleFecDriver: uinit");
+#if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "simple fec driver destroyed. format=%d\n", obj->parent.format);
 	fclose(log_file);
+#endif
 }
 
 
@@ -450,10 +481,12 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format){
 	obj->last_ts = 0;
 	obj->block_max = 0;
 	qinit(&obj->recv_fec);
-
+	
+#if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "simple fec driver inited. format=%d\n", format);
 	fclose(log_file);
+#endif
 
 	if (cauchy_256_init()) {
         // Wrong static library

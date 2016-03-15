@@ -217,9 +217,11 @@ mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 		FILE* log_file;
 		ret=getq(q); /* dequeue the packet, since it has an interesting timestamp*/
 		ortp_debug("rtp_getq_permissive: Found packet with ts=%i",tmprtp->timestamp);
+#if defined(ANDROID)
 		log_file = fopen("sdcard/test1.txt", "a+");
 		fprintf(log_file, "rtp_getq_permissive: Found packet with seq=%d, ts=%i, curr=%d\n", tmprtp->seq_number,tmprtp->timestamp, timestamp);
 		fclose(log_file);
+#endif
 	}
 	return ret;
 }
