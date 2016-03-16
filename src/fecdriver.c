@@ -137,11 +137,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			free(obj->redundancy);
 			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
-#if defined(ANDROID)
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSEncoder: before\n");
-			fclose(log_file);
-#endif
 			if (cauchy_256_encode(obj->source_curr, redundancy_num, (const unsigned char**)obj->source_packets, obj->redundancy, redundancy_size)) {
 				ortp_message("RSEncoder: ENCODE ERROR!");
 #if defined(ANDROID)
@@ -151,11 +146,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 #endif
 				return FALSE;
 			}
-#if defined(ANDROID)
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSEncoder: after\n");
-			fclose(log_file);
-#endif
 
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
 			redundancy = obj->redundancy;
@@ -210,9 +200,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	mblk_t *fec = peekq(&obj->recv_fec);
 	uint16_t seq, fec_seq;
 	int decidx;
-	struct timeval ts, te;
-
-	ortp_gettimeofday(&ts,NULL);
 
 	while(rtp != NULL && rtp != &sources->_q_stopper) {
 		seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
@@ -279,10 +266,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		return FALSE;
 	}
 	
-	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d", idx, idx+k-1, k, n);
+	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d, size=%d", idx, idx+k-1, k, n, packet_size);
 #if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "RSDecoder: try decode block (%d~%d),k=%d,n=%d\n", idx, idx+k-1, k, n);
+	fprintf(log_file, "RSDecoder: try decode block (%d~%d),k=%d,n=%d, size=%d\n", idx, idx+k-1, k, n, packet_size);
 	fclose(log_file);
 #endif
 
@@ -295,11 +282,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 #endif
         return FALSE;
     }
-	ortp_gettimeofday(&te,NULL);
 	ortp_message("RSDecoder: decode succeed");
 #if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "RSDecoder: decode succeed, time=%ldus\n", 1000000 * (te.tv_sec-ts.tv_sec) + (te.tv_usec-ts.tv_usec));
+	fprintf(log_file, "RSDecoder: decode succeed\n");
 	fclose(log_file);
 #endif
 
@@ -320,6 +306,11 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		if(dec_rtp != NULL){
 			rtp_session_rtp_parse(obj->parent.session,dec_rtp,user_ts,NULL,0);
 			ortp_message("RSDecoder: recover and push rtp=%d", rtp_header->seq_number);
+#if defined(ANDROID)
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: recover and push rtp=%d\n", rtp_header->seq_number);
+			fclose(log_file);
+#endif
 		}
 	}
 
@@ -483,7 +474,10 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format){
 	qinit(&obj->recv_fec);
 	
 #if defined(ANDROID)
-	log_file = fopen("sdcard/test1.txt", "a+");
+	if(format == 1)
+		log_file = fopen("sdcard/test1.txt", "w");
+	else
+		log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "simple fec driver inited. format=%d\n", format);
 	fclose(log_file);
 #endif
