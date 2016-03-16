@@ -150,10 +150,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
 			redundancy = obj->redundancy;
 			for(; fec_index < redundancy_num; fec_index++) {
-				if(fec_index == 0) {
-					redundancy += redundancy_size;
-					continue;
-				}
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
 					(uint16_t)(obj->source_curr+redundancy_num), (uint16_t)obj->source_curr, (uint8_t *)redundancy, redundancy_size);
 				redundancy += redundancy_size;
