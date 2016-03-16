@@ -37,23 +37,9 @@ void cat::memswap(void * CAT_RESTRICT vx, void * CAT_RESTRICT vy, int bytes)
     u8 * CAT_RESTRICT y = NULL;
     u64 * CAT_RESTRICT x64 = reinterpret_cast<u64 *>( vx );
     u64 * CAT_RESTRICT y64 = reinterpret_cast<u64 *>( vy );
-#if defined(ANDROID)
-    FILE* log_file;
-    log_file = fopen("sdcard/test1.txt", "a+");
-    fprintf(log_file, "CAU: bytes=%d, vx=%p, vy=%p\n", bytes, vx, vx);
-    fclose(log_file);
-#endif
 
     if(((unsigned int)x64 / 4 * 4 == (unsigned int)x64) && ((unsigned int)y64 / 4 * 4 == (unsigned int)y64)) {
         // Primary engine
-#if defined(ANDROID)
-        log_file = fopen("sdcard/test1.txt", "a+");
-        fprintf(log_file, "CAU: 64, x64=%p, y64=%p\n", x64, y64);
-        fclose(log_file);
-        log_file = fopen("sdcard/test1.txt", "a+");
-        fprintf(log_file, "CAU: x640=%llu, y640=%llu\n", x64[0], y64[0]);
-        fclose(log_file);
-#endif
 
         // Handle remaining multiples of 8 bytes
         while (bytes >= 8) {
@@ -72,11 +58,6 @@ void cat::memswap(void * CAT_RESTRICT vx, void * CAT_RESTRICT vy, int bytes)
         x = reinterpret_cast<u8 *>( vx );
         y = reinterpret_cast<u8 *>( vy );
         u8 tmp;
-#if defined(ANDROID)
-        log_file = fopen("sdcard/test1.txt", "a+");
-        fprintf(log_file, "CAU: 8, x=%p, y=%p\n", x, y);
-        fclose(log_file);
-#endif
 
         while(bytes >= 8) {
             for(int i=7; i>=0; i--) {

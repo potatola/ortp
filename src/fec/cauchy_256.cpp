@@ -27,9 +27,6 @@
 */
 
 #include "ortp/cauchy_256.h"
-#include "ortp/ortp.h"
-#include <stdio.h>
-FILE* log_file;
 
 /*
  * Cauchy Reed Solomon (CRS) codes [1]
@@ -1014,34 +1011,16 @@ static void gaussian_elimination(int rows, Block *recovery[256], u64 *bitmatrix,
 		// For each option,
 		for (int option = pivot; option < bit_rows; ++option, row += bitstride) {
 			// If bit in this row is set,
-			ortp_message("CAU: option=%d", option);
-#if defined(ANDROID)
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "CAU: option=%d\n", option);
-			fclose(log_file);
-#endif
 			if (row[0] & mask) {
 				// Prepare to add in data
 				DLOG(cout << "Found pivot " << pivot << endl;)
 				DLOG(print_matrix(bitmatrix, bitstride, bit_rows);)
 
 				u8 *src = recovery[pivot >> 3]->data + (pivot & 7) * subbytes;
-				ortp_message("CAU: 5");
-#if defined(ANDROID)
-				log_file = fopen("sdcard/test1.txt", "a+");
-				fprintf(log_file, "CAU: 5\n");
-				fclose(log_file);
-#endif
 
 				// If the rows were out of order,
 				if (option != pivot) {
 					u8 *data = recovery[option >> 3]->data + (option & 7) * subbytes;
-				ortp_message("CAU: 6");
-#if defined(ANDROID)
-				log_file = fopen("sdcard/test1.txt", "a+");
-				fprintf(log_file, "CAU: 6\n");
-				fclose(log_file);
-#endif
 
 					// Reorder data into the right place
 					memswap(src, data, subbytes);
@@ -1049,12 +1028,6 @@ static void gaussian_elimination(int rows, Block *recovery[256], u64 *bitmatrix,
 					// Reorder matrix rows
 					memswap(row, offset, (bitstride - pivot_word) << 3);
 				}
-				ortp_message("CAU: order");
-#if defined(ANDROID)
-				log_file = fopen("sdcard/test1.txt", "a+");
-				fprintf(log_file, "CAU: order\n");
-				fclose(log_file);
-#endif
 
 				// For each other row,
 				u64 *other = row;
@@ -1278,11 +1251,6 @@ extern "C" int cauchy_256_decode(int k, int m, Block *blocks, int block_bytes)
 	int original_count;
 	u8 erasures[256];
 	sort_blocks(k, blocks, original, original_count, recovery, recovery_count, erasures);
-#if defined(ANDROID)
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "CAU: sorted, rc=%d, oc=%d\n", recovery_count, original_count);
-	fclose(log_file);
-#endif
 
 	DLOG(cout << "Recovery rows(" << recovery_count << "):" << endl;
 	for (int ii = 0; ii < recovery_count; ++ii) {
@@ -1404,20 +1372,10 @@ extern "C" int cauchy_256_decode(int k, int m, Block *blocks, int block_bytes)
 	} else {
 		// Non-windowed version:
 		gaussian_elimination(recovery_count, recovery, bitmatrix, bitstride, subbytes);
-#if defined(ANDROID)
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "CAU: gaussian elimination\n");
-	fclose(log_file);
-#endif
 
 		DLOG(print_matrix(bitmatrix, bitstride, recovery_count * 8);)
 
 		back_substitution(recovery_count, recovery, bitmatrix, bitstride, subbytes);
-#if defined(ANDROID)
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "CAU: back_substitution\n");
-	fclose(log_file);
-#endif
 	}
 
 	// Free temporary workspace
@@ -1619,5 +1577,4 @@ extern "C" int cauchy_256_encode(int k, int m, const u8 *data[],
 
 	return 0;
 }
-
 
