@@ -132,7 +132,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			char *redundancy;
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
 			int redundancy_num = (obj->source_curr*obj->fec_rate/100);
-			redundancy_num = 2;
 			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
 			free(obj->redundancy);
 			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
@@ -309,6 +308,12 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 #endif
 		}
 	}
+
+	//free memory
+	for(decidx=0; decidx<k; decidx++) {
+		free(block_info[decidx].data);
+	}
+	free(block_info);
 
 	return TRUE;
 }
