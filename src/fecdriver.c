@@ -112,6 +112,11 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	int msg_size = msgdsize(rtp);
 	
 	//ortp_message("SimpleFecDriver: outgoing rtp, seq=%d, ts=%d", rtp_seq, rtp_ts);
+#if defined(ANDROID)
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "outgoing rtp, seq=%d, ts=%d\n", rtp_seq, rtp_ts);
+	fclose(log_file);
+#endif
 	if(obj->fec_rate == 0) return TRUE;
 
 	//an int indicating size of the packet is added at head of the stream
@@ -122,6 +127,11 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	obj->source_curr ++;
 	
 	//ortp_message("GYF: source cur=%d, num=%d, ts=%d, last_ts=%d", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
+#if defined(ANDROID)
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "GYF: source cur=%d, num=%d, ts=%d, last_ts=%d\n", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
+	fclose(log_file);
+#endif
 	if(rtp_ts != obj->last_ts) {
 		obj->last_ts = rtp_ts;
 
@@ -133,6 +143,11 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
 			int redundancy_num = (obj->source_curr*obj->fec_rate/100);
 			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
+#if defined(ANDROID)
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSEncoder: seq=%d, source_num=%d, redun_num=%d\n", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
+			fclose(log_file);
+#endif
 			free(obj->redundancy);
 			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
@@ -147,6 +162,11 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			}
 
 			//ortp_message("GYF: FEC encode succeed, seq=%d, size=%d", rtp_seq-obj->source_curr+1, redundancy_size);
+#if defined(ANDROID)
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "GYF: FEC encode succeed, seq=%d, size=%d\n", rtp_seq-obj->source_curr+1, redundancy_size);
+			fclose(log_file);
+#endif
 			redundancy = obj->redundancy;
 			for(; fec_index < redundancy_num; fec_index++) {
 				rtp_session_send_rtcp_FEC(obj->parent.session, 0, rtp_seq+1-obj->source_curr, fec_index, 
@@ -211,11 +231,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			
 			received_count ++;
 			ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
-#if defined(ANDROID)
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
-			fclose(log_file);
-#endif
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -236,12 +251,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			received_count ++;
 			ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
 				received_count, block_info[received_count-1].row);
-#if defined(ANDROID)
-			log_file = fopen("sdcard/test1.txt", "a+");
-			fprintf(log_file, "RSDecoder: fec packet=(%d,%d), num=%d, row=%d\n", fec_seq, rtcp_FEC_get_index(fec), 
-				received_count, block_info[received_count-1].row);
-			fclose(log_file);
-#endif
 
 			if(received_count >= k) {
 				break;
@@ -278,11 +287,6 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
         return FALSE;
     }
 	ortp_message("RSDecoder: decode succeed");
-#if defined(ANDROID)
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "RSDecoder: decode succeed\n");
-	fclose(log_file);
-#endif
 
 	for(decidx=received_source; decidx<received_count; decidx++) {
 		int pkt_size = *((int*)block_info[decidx].data);
@@ -322,9 +326,16 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint3
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
 	
 	rtp_header_t *header = (rtp_header_t *)rtp->b_rptr;
-	mblk_t *rtp_store = dupmsg(rtp);
+	mblk_t *rtcp;
+#if defined(ANDROID)
+	{
+		log_file = fopen("sdcard/test1.txt", "a+");
+		fprintf(log_file, "in fun: incoming rtp, seq=%d\n", header->seq_number);
+		fclose(log_file);
+	}
+#endif
 
-	mblk_t * rtcp = peekq(&obj->recv_fec);
+	rtcp = peekq(&obj->recv_fec);
 
 	if(rtcp == NULL){
 		return FALSE;
