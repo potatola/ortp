@@ -106,7 +106,6 @@ bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint1
 
 bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
-	// TODO: store for encode
 
 	uint16_t rtp_seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
 	uint32_t rtp_ts = ((rtp_header_t *)rtp->b_rptr)->timestamp;
@@ -134,7 +133,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 
 		if(obj->source_curr >= obj->source_num) {
 			//try encode
-			struct timeval ts, te;
 			int fec_index = 0;
 			char *redundancy;
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
@@ -202,6 +200,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	mblk_t *fec = peekq(&obj->recv_fec);
 	uint16_t seq, fec_seq;
 	int decidx;
+	memset(block_info, 0, k * sizeof(Block));
 
 	while(rtp != NULL && rtp != &sources->_q_stopper) {
 		seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
@@ -225,6 +224,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			fclose(log_file);
 #endif
 			if(received_count >= k) {
+				for(decidx=0; decidx<received_count; decidx++) {
+					free(block_info[decidx].data);
+				}
+				free(block_info);
 				return TRUE;
 			}
 		}
@@ -238,7 +241,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		fec_seq = rtcp_FEC_get_seq(fec);
 		if(fec_seq != idx) break;
 		else {
-			rtcp_FEC_get_data(fec,&block_info[received_count].data,&packet_size);
+			rtcp_FEC_get_data(fec,&(block_info[received_count].data),&packet_size);
 			block_info[received_count].row = rtcp_FEC_get_source_num(fec)+rtcp_FEC_get_index(fec);
 			
 			received_count ++;
@@ -266,6 +269,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		fprintf(log_file, "RSDecoder: decode failed, no enough packets, (%d, %d)\n", k, n);
 		fclose(log_file);
 #endif
+		for(decidx=0; decidx<received_source; decidx++) {
+			free(block_info[decidx].data);
+		}
+		free(block_info);
 		return FALSE;
 	}
 	
@@ -312,8 +319,8 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		}
 	}
 
-	//free memory
-	for(decidx=0; decidx<k; decidx++) {
+	//free memory: data of rtcp will be freed with the packet
+	for(decidx=0; decidx<received_source; decidx++) {
 		free(block_info[decidx].data);
 	}
 	free(block_info);
@@ -353,7 +360,7 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint3
 			fclose(log_file);
 #endif
 			remq(&obj->recv_fec, rtcp);
-			ortp_free(rtcp);
+			freemsg(rtcp);
 
 			rtcp = peekq(&obj->recv_fec);
 		}
@@ -428,7 +435,7 @@ bool_t simple_fec_driver_process_rtcp(MSFecDriver * baseobj,mblk_t * rtcp){
 	fclose(log_file);
 #endif
 
-	// TODO: free dumrtcp
+	//the original packet will be freed other place
 	duprtcp = dupmsg(rtcp);
 	simple_fec_driver_rtcp_putq_inc(&obj->recv_fec, duprtcp);
 	
