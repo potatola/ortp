@@ -5,6 +5,8 @@
 #include "ortp/cauchy_256.h"
 #include <stdio.h>
 
+#define FEC_DEBUG
+
 // TODO: called in __rtp_session_sendm_with_ts, before transformed into network format. Should be dealed with.
 bool_t ms_fec_driver_outgoing_rtp(MSFecDriver * obj,mblk_t * rtp){
 	if(obj->desc->outgoing_rtp) {
@@ -127,11 +129,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	obj->source_curr ++;
 	
 	//ortp_message("GYF: source cur=%d, num=%d, ts=%d, last_ts=%d", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
-#if defined(ANDROID) && defined(FEC_DEBUG)
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "GYF: source cur=%d, num=%d, ts=%d, last_ts=%d\n", obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
-	fclose(log_file);
-#endif
 	if(rtp_ts != obj->last_ts) {
 		obj->last_ts = rtp_ts;
 
@@ -222,6 +219,11 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			
 			received_count ++;
 			ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+#if defined(ANDROID) && defined(FEC_DEBUG)
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
+			fclose(log_file);
+#endif
 			if(received_count >= k) {
 				return TRUE;
 			}
@@ -242,6 +244,12 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			received_count ++;
 			ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
 				received_count, block_info[received_count-1].row);
+#if defined(ANDROID) && defined(FEC_DEBUG)
+			log_file = fopen("sdcard/test1.txt", "a+");
+			fprintf(log_file, "RSDecoder: fec packet=(%d,%d), num=%d, row=%d\n", fec_seq, rtcp_FEC_get_index(fec), 
+				received_count, block_info[received_count-1].row);
+			fclose(log_file);
+#endif
 
 			if(received_count >= k) {
 				break;
@@ -252,10 +260,10 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	}
 
 	if(received_count < k) {
-		ortp_message("RSDecoder: decode failed, no enough packets");
+		ortp_message("RSDecoder: decode failed, no enough packets, (%d, %d)", k, n);
 #if defined(ANDROID) && defined(FEC_DEBUG)
 		log_file = fopen("sdcard/test1.txt", "a+");
-		fprintf(log_file, "RSDecoder: decode failed, no enough packets\n");
+		fprintf(log_file, "RSDecoder: decode failed, no enough packets, (%d, %d)\n", k, n);
 		fclose(log_file);
 #endif
 		return FALSE;
@@ -318,15 +326,13 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint3
 	
 	rtp_header_t *header = (rtp_header_t *)rtp->b_rptr;
 	mblk_t *rtcp;
-#if defined(ANDROID) && defined(FEC_DEBUG)
-	{
-		log_file = fopen("sdcard/test1.txt", "a+");
-		fprintf(log_file, "in fun: incoming rtp, seq=%d\n", header->seq_number);
-		fclose(log_file);
-	}
-#endif
 
 	rtcp = peekq(&obj->recv_fec);
+#if defined(ANDROID) && defined(FEC_DEBUG)
+	log_file = fopen("sdcard/test1.txt", "a+");
+	fprintf(log_file, "fetching rtp, seq=%d\n", header->seq_number);
+	fclose(log_file);
+#endif
 
 	if(rtcp == NULL){
 		return FALSE;
