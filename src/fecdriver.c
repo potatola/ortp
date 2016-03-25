@@ -92,9 +92,14 @@ static unsigned char* msg2stream(mblk_t *im) {
 **/
 bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint16_t source_num){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
-	obj->block_size = 0;
-	obj->source_num = source_num;
-	obj->fec_rate = fec_rate;
+	if(source_num == -1) {
+		obj->fec_rate += fec_rate * (100 + obj->source_num - 1) / obj->source_num;
+	}
+	else {
+		obj->block_size = 0;
+		obj->source_num = source_num;
+		obj->fec_rate = fec_rate;
+	}
 	ortp_message("FecDriver: fec rate set to (%d, %d%%)", source_num, fec_rate);
 #if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
