@@ -92,8 +92,14 @@ static unsigned char* msg2stream(mblk_t *im) {
 **/
 bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint16_t source_num){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
-	if(source_num == -1) {
-		obj->fec_rate += fec_rate * (100 + obj->source_num - 1) / obj->source_num;
+	if(source_num == 0) {
+		int delta = (100 + obj->source_num - 1) / obj->source_num;
+		if(fec_rate == 1 && obj->fec_rate <= 100) {
+			obj->fec_rate += delta;
+		}
+		if(fec_rate == 0) {
+			obj->fec_rate = obj->fec_rate > delta ? obj->fec_rate - delta : 0;
+		}
 	}
 	else {
 		obj->block_size = 0;
@@ -103,7 +109,7 @@ bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint1
 	ortp_message("FecDriver: fec rate set to (%d, %d%%)", source_num, fec_rate);
 #if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "FecDriver: fec rate set to (%d, %d%%)\n", source_num, fec_rate);
+	fprintf(log_file, "FecDriver: fec rate set to (%d, %d%%)\n", obj->source_num, obj->fec_rate);
 	fclose(log_file);
 #endif
 	return TRUE;
@@ -118,11 +124,6 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	int msg_size = msgdsize(rtp);
 	
 	//ortp_message("SimpleFecDriver: outgoing rtp, seq=%d, ts=%d", rtp_seq, rtp_ts);
-#if defined(ANDROID) && defined(FEC_DEBUG)
-	log_file = fopen("sdcard/test1.txt", "a+");
-	fprintf(log_file, "outgoing rtp, seq=%d, ts=%d\n", rtp_seq, rtp_ts);
-	fclose(log_file);
-#endif
 	if(obj->fec_rate == 0) return TRUE;
 
 	//an int indicating size of the packet is added at head of the stream
