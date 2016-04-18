@@ -92,6 +92,7 @@ static unsigned char* msg2stream(mblk_t *im) {
 **/
 bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint16_t source_num){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
+	return TRUE;
 	if(source_num == 0) {
 		int delta = (100 + obj->source_num - 1) / obj->source_num;
 		if(fec_rate == 1 && obj->fec_rate <= 100) {
@@ -106,7 +107,7 @@ bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint1
 		obj->source_num = source_num;
 		obj->fec_rate = fec_rate;
 	}
-	ortp_message("FecDriver: fec rate set to (%d, %d%%)", source_num, fec_rate);
+	ortp_message("FecDriver: fec rate set to (%d, %d%%)", obj->source_num, obj->fec_rate);
 #if defined(ANDROID)
 	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "FecDriver: fec rate set to (%d, %d%%)\n", obj->source_num, obj->fec_rate);
@@ -144,6 +145,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
 			int redundancy_num = (obj->source_curr*obj->fec_rate/100);
 			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq+1-obj->source_curr, obj->source_curr, redundancy_num);
+			if(redundancy_num == 0) return TRUE;
 			free(obj->redundancy);
 			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
 			
