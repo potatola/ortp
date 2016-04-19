@@ -194,6 +194,27 @@ mblk_t *rtp_getq(queue_t *q,uint32_t timestamp, int *rejected)
 	return ret;
 }
 
+uint8_t rtp_get_pid(uint8_t *h)
+{
+	h += 0xC;
+
+	return (h[0] & 0x07);
+}
+
+bool_t rtp_get_non_reference_frame(uint8_t *h)
+{
+	h += 0xC;
+	
+	if(h[0] & (1 << 5)) return TRUE;
+	else return FALSE;
+}
+
+bool_t rtp_get_keyframe(unsigned char* data)
+{
+	data += 0x10;
+	return !(data[0] & 1);
+}
+
 mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 {
 	mblk_t *tmp,*ret=NULL;
@@ -214,8 +235,11 @@ mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 	ortp_debug("rtp_getq_permissive: Seeing packet with ts=%i",tmprtp->timestamp);
 	if ( RTP_TIMESTAMP_IS_NEWER_THAN(timestamp,tmprtp->timestamp) )
 	{
-		FILE* log_file;
 		ret=getq(q); /* dequeue the packet, since it has an interesting timestamp*/
+		if(rtp_get_pid(ret->b_rptr) == 0) {
+			ortp_message("getq: ref=%d, keyframe=%d", !rtp_get_non_reference_frame(ret->b_rptr)
+				, rtp_get_keyframe(ret->b_rptr));
+		}
 		ortp_debug("rtp_getq_permissive: Found packet with ts=%i",tmprtp->timestamp);
 	}
 	return ret;
