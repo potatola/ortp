@@ -1563,6 +1563,7 @@ static void rtp_process_incoming_packet(RtpSession * session, mblk_t * mp, bool_
 		}
 		/* then parse the message and put on jitter buffer queue */
 		update_recv_bytes(&session->rtp.gs, (int)(mp->b_wptr - mp->b_rptr));
+		ms_ew_fec_rtp_store(session->fec, mp);
 		rtp_session_rtp_parse(session, mp, user_ts, remaddr,addrlen);
 		/*for bandwidth measurements:*/
 	}else {
