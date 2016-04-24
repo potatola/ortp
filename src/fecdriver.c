@@ -498,10 +498,7 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format){
 	qinit(&obj->recv_fec);
 	
 #if defined(ANDROID)
-	if(format == 1)
-		log_file = fopen("sdcard/test1.txt", "w");
-	else
-		log_file = fopen("sdcard/test1.txt", "a+");
+	log_file = fopen("sdcard/test1.txt", "a+");
 	fprintf(log_file, "simple fec driver inited. format=%d\n", format);
 	fclose(log_file);
 #endif
