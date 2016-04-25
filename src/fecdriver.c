@@ -525,6 +525,7 @@ typedef struct _MSEWFecDriver{
 	uint32_t last_ts;
 	queue_t recv_fec;	//rtcp with fec data
 	queue_t recv_rtp;
+	uint32_t curr_start_idx;
 }MSEWFecDriver;
 
 uint8_t rtp_get_pid(uint8_t *h)
@@ -631,20 +632,63 @@ bool_t ew_fec_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	return TRUE;
 }
 
-bool_t ew_fec_RS_decode(MSFecDriver * baseobj, queue_t *sources, int idx, int k, int n, uint32_t user_ts, uint16_t min_seq){
+static bool_t queue_packet(queue_t *q, int maxrqsz, mblk_t *mp, rtp_header_t *rtp, int *discarded, int *duplicate)
+{
+	mblk_t *tmp;
+	int header_size;
+	*discarded=0;
+	*duplicate=0;
+	header_size=RTP_FIXED_HEADER_SIZE+ (4*rtp->cc);
+	if ((mp->b_wptr - mp->b_rptr)==header_size){
+		ortp_debug("Rtp packet contains no data.");
+		(*discarded)++;
+		freemsg(mp);
+		return FALSE;
+	}
+
+	/* and then add the packet to the queue */
+	if (rtp_putq(q,mp) < 0) {
+		/* It was a duplicate packet */
+		(*duplicate)++;
+	}
+
+	/* make some checks: q size must not exceed RtpStream::max_rq_size */
+	while (q->q_mcount > maxrqsz)
+	{
+		/* remove the oldest mblk_t */
+		tmp=getq(q);
+		if (mp!=NULL)
+		{
+			ortp_warning("rtp_putq: Queue is full. Discarding message with ts=%u",((rtp_header_t*)mp->b_rptr)->timestamp);
+			freemsg(tmp);
+			(*discarded)++;
+		}
+	}
+	return TRUE;
+}
+
+bool_t ew_fec_RS_decode(MSFecDriver * baseobj, queue_t *sources, queue_t *rtp_queue, int idx, int k, int n, uint32_t user_ts, uint16_t min_seq){
 	MSEWFecDriver *obj = (MSEWFecDriver *)baseobj;
 	Block *block_info = (Block *)malloc(k * sizeof(Block));
 	int received_count = 0, received_source = 0, end_idx = idx+k;
 	int packet_size = 0;
 
 	mblk_t *rtp = peekq(sources);
+	mblk_t *rtp_ori = peekq(rtp_queue);
 	mblk_t *fec = peekq(&obj->recv_fec);
 	uint16_t seq, fec_seq;
 	int decidx;
 	memset(block_info, 0, k * sizeof(Block));
 	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d, size=%d", idx, idx+k-1, k, n, packet_size);
 
-	while(rtp != NULL && rtp != &sources->_q_stopper) {
+	while((rtp != NULL && rtp != &sources->_q_stopper)
+		|| (rtp_ori != NULL && rtp_ori != &rtp_queue->_q_stopper)) {
+		if(rtp == NULL || rtp == &sources->_q_stopper) {
+			int tmp, tmp1;
+			queue_packet(sources, 100, rtp_ori, (rtp_header_t *)rtp->b_rptr, tmp, tmp1);
+			rtp = rtp->b_next;
+			rtp_ori = rtp_ori->b_next;
+		}
 		seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
 		//ortp_message("GYF: seeing rtp seq=%d", seq);
 		if(seq < idx) {
@@ -798,7 +842,11 @@ bool_t ew_fec_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint32_t user_ts
 
 	if(header->seq_number+2 >= rtcp_FEC_get_seq(rtcp)){
 		uint16_t currseq = rtcp_FEC_get_seq(rtcp);
-		ew_fec_RS_decode((MSFecDriver *)obj, &obj->recv_rtp, currseq, rtcp_FEC_get_source_num(rtcp), 
+		if(currseq != obj->curr_start_idx) {
+			currseq = obj->curr_start_idx;
+			flushq(obj->recv_rtp);
+		}
+		ew_fec_RS_decode((MSFecDriver *)obj, &obj->recv_rtp, &obj->parent.session->rtp.rq, currseq, rtcp_FEC_get_source_num(rtcp), 
 			rtcp_FEC_get_block_size(rtcp), user_ts, header->seq_number);
 
 		while(rtcp != NULL && (rtcp_FEC_get_seq(rtcp) == currseq)) {
@@ -872,6 +920,7 @@ MSFecDriver * ms_ew_fec_driver_new(RtpSession *session, int format){
 	obj->source_curr = 0;
 	obj->last_ts = 0;
 	obj->block_max = 0;
+	obj->curr_start_idx = 0;
 	qinit(&obj->recv_fec);
 	qinit(&obj->recv_rtp);
 	
@@ -888,41 +937,6 @@ MSFecDriver * ms_ew_fec_driver_new(RtpSession *session, int format){
 	ortp_message("MSEWFecDriver: created driver [%p], format=%d", obj, format);
 	
 	return (MSFecDriver *)obj;
-}
-
-static bool_t queue_packet(queue_t *q, int maxrqsz, mblk_t *mp, rtp_header_t *rtp, int *discarded, int *duplicate)
-{
-	mblk_t *tmp;
-	int header_size;
-	*discarded=0;
-	*duplicate=0;
-	header_size=RTP_FIXED_HEADER_SIZE+ (4*rtp->cc);
-	if ((mp->b_wptr - mp->b_rptr)==header_size){
-		ortp_debug("Rtp packet contains no data.");
-		(*discarded)++;
-		freemsg(mp);
-		return FALSE;
-	}
-
-	/* and then add the packet to the queue */
-	if (rtp_putq(q,mp) < 0) {
-		/* It was a duplicate packet */
-		(*duplicate)++;
-	}
-
-	/* make some checks: q size must not exceed RtpStream::max_rq_size */
-	while (q->q_mcount > maxrqsz)
-	{
-		/* remove the oldest mblk_t */
-		tmp=getq(q);
-		if (mp!=NULL)
-		{
-			ortp_warning("rtp_putq: Queue is full. Discarding message with ts=%u",((rtp_header_t*)mp->b_rptr)->timestamp);
-			freemsg(tmp);
-			(*discarded)++;
-		}
-	}
-	return TRUE;
 }
 
 void ms_ew_fec_rtp_store(MSFecDriver * baseobj, mblk_t * rtp) {
