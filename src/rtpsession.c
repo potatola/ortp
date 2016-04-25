@@ -195,8 +195,62 @@ mblk_t *rtp_getq(queue_t *q,uint32_t timestamp, int *rejected)
 }
 
 static int last_seq = -1;
+static uint32_t last_ts = 0; 
 static queue_t bufq;
 bool_t rtp_get_non_reference_frame(uint8_t *h);
+
+static bool_t check_valid_frame(queue_t *q, uint32_t timestamp) {
+	mblk_t *rtp = peekq(q);
+	uint32_t ts;
+	int curr_pid = 0;
+
+	while(rtp != NULL && rtp != &q->_q_stopper) {
+		ts = ((rtp_header_t *)rtp->b_rptr)->timestamp;
+		ortp_message("GYF: seeing rtp seq=%d", ((rtp_header_t *)rtp->b_rptr)->seq_number);
+		if(ts == timestamp) {
+			if(rtp_get_pid(rtp->b_rptr) != curr_pid) return FALSE;
+			else if(msgdsize(rtp) < 1452) curr_pid ++;
+		}
+		else {
+			if(curr_pid <= 2) return FALSE;
+			else return TRUE;
+		}
+		
+		rtp = rtp->b_next;
+	}
+	if(curr_pid <= 2) return FALSE;
+	return TRUE;
+}
+
+static void migrate_frame(queue_t *qs, queue_t *qd, uint32_t timestamp) {
+	uint32_t ts;
+	int tmp, tmp1;
+	mblk_t *rtp;
+	rtp_header_t * header;
+
+	//migrate packets
+	while(!qempty(qs)) {
+		rtp = peekq(qs);
+		header = (rtp_header_t *)rtp->b_rptr;
+		ts = header->timestamp;
+		//ortp_message("GYF: seeing rtp seq=%d", seq);
+		if(ts == timestamp) {
+			ortp_message("migrate packet seq=%d, ts=%d", header->seq_number, header->timestamp);
+			rtp = getq(qs);
+			queue_packet(qd, 100, rtp, header, &tmp, &tmp1);
+		}
+		else {
+			break;
+		}
+	}
+
+	// move back complete frames
+	rtp = peekq(qd);
+	if(check_valid_frame(qd, ((rtp_header_t *)rtp->b_rptr)->timestamp)) {
+		migrate_frame(qd, qs, ((rtp_header_t *)rtp->b_rptr)->timestamp);
+	}
+}
+
 
 mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 {
@@ -223,12 +277,21 @@ mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 	ortp_debug("rtp_getq_permissive: Seeing packet with ts=%i",tmprtp->timestamp);
 	if ( RTP_TIMESTAMP_IS_NEWER_THAN(timestamp,tmprtp->timestamp) )
 	{
-		ret=getq(q); /* dequeue the packet, since it has an interesting timestamp*/
-		if(rtp_get_pid(ret->b_rptr) == 0) {
-			ortp_message("get_permissive: pp=%p, ref=%d, keyframe=%d", ret->b_rptr, FALSE == rtp_get_non_reference_frame(ret->b_rptr)
-				, rtp_get_keyframe(ret->b_rptr));
+		if(last_ts != timestamp) {
+			if(!rtp_get_non_reference_frame(tmp->b_rptr)) {
+				ortp_message("flush bufq");
+				flushq(&bufq, 0);
+			}
+			if(!check_valid_frame(q, tmprtp->timestamp)) {
+				ortp_message("invalid frame, migrate packets");
+				migrate_frame(q, &bufq, tmprtp->timestamp);
+				return ret;
+			}
+			last_ts = timestamp;
 		}
-		ortp_message("rtp_getq_permissive: Found packet with ts=%i,%d",tmprtp->timestamp, tmprtp->seq_number);
+		ret=getq(q); /* dequeue the packet, since it has an interesting timestamp*/
+		ortp_message("rtp_getq_permissive: Found packet with ts=%i,%d,%d,%d",tmprtp->timestamp, tmprtp->seq_number
+			, rtp_get_pid(tmp->b_rptr), msgdsize(tmp));
 	}
 	return ret;
 }

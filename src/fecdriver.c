@@ -147,7 +147,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	//ortp_message("SimpleFecDriver: outgoing rtp, seq=%d, ts=%d", rtp_seq, rtp_ts);
 	if(obj->fec_rate == 0) return TRUE;
 	
-	ortp_message("GYF: source seq=%d, cur=%d, num=%d, ts=%d, last_ts=%d", rtp_seq, obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
+	//ortp_message("GYF: source seq=%d, cur=%d, num=%d, ts=%d, last_ts=%d", rtp_seq, obj->source_curr, obj->source_num, rtp_ts, obj->last_ts);
 	if(rtp_ts != obj->last_ts) {
 		obj->last_ts = rtp_ts;
 
@@ -157,7 +157,7 @@ bool_t simple_fec_driver_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 			char *redundancy;
 			int redundancy_size = (obj->block_max + 7) / 8 * 8;
 			int redundancy_num = (obj->source_curr*obj->fec_rate/100);
-			ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq-obj->source_curr, obj->source_curr, redundancy_num);
+			//ortp_message("RSEncoder: seq=%d, source_num=%d, redun_num=%d", rtp_seq-obj->source_curr, obj->source_curr, redundancy_num);
 			if(redundancy_num == 0) return TRUE;
 			free(obj->redundancy);
 			obj->redundancy = (char *)malloc(redundancy_num * redundancy_size * sizeof(char));
@@ -229,7 +229,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 	uint16_t seq, fec_seq;
 	int decidx;
 	memset(block_info, 0, k * sizeof(Block));
-	ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d, size=%d", idx, idx+k-1, k, n, packet_size);
+	//ortp_message("RSDecoder: try decode block (%d~%d),k=%d,n=%d, size=%d", idx, idx+k-1, k, n, packet_size);
 
 	while(rtp != NULL && rtp != &sources->_q_stopper) {
 		seq = ((rtp_header_t *)rtp->b_rptr)->seq_number;
@@ -246,7 +246,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			freemsg(duprtp);
 			
 			received_count ++;
-			ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
+			//ortp_message("RSDecoder: source packet=%d, num=%d, row=%d", seq, received_count, seq-idx);
 #if defined(ANDROID) && defined(FEC_DEBUG)
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "RSDecoder: source packet=%d, num=%d, row=%d\n", seq, received_count, seq-idx);
@@ -362,11 +362,6 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint3
 	
 	rtp_header_t *header = (rtp_header_t *)rtp->b_rptr;
 	mblk_t *rtcp;
-
-	if(rtp_get_pid(rtp->b_rptr) == 0) {
-		ortp_message("Fec incoming: pp=%p, ref=%d, keyframe=%d", rtp->b_rptr, FALSE == rtp_get_non_reference_frame(rtp->b_rptr)
-			, rtp_get_keyframe(rtp->b_rptr));
-	}
 
 	rtcp = peekq(&obj->recv_fec);
 #if defined(ANDROID) && defined(FEC_DEBUG)
@@ -637,7 +632,7 @@ bool_t ew_fec_outgoing_rtp(MSFecDriver * baseobj,mblk_t * rtp){
 	return TRUE;
 }
 
-static bool_t queue_packet(queue_t *q, int maxrqsz, mblk_t *mp, rtp_header_t *rtp, int *discarded, int *duplicate)
+bool_t queue_packet(queue_t *q, int maxrqsz, mblk_t *mp, rtp_header_t *rtp, int *discarded, int *duplicate)
 {
 	mblk_t *tmp;
 	int header_size;
@@ -690,7 +685,7 @@ bool_t ew_fec_RS_decode(MSFecDriver * baseobj, queue_t *sources, queue_t *rtp_qu
 		|| (rtp_ori != NULL && rtp_ori != &rtp_queue->_q_stopper)) {
 		if(rtp == NULL || rtp == &sources->_q_stopper) {
 			int tmp, tmp1;
-			queue_packet(sources, 100, rtp_ori, (rtp_header_t *)rtp->b_rptr, tmp, tmp1);
+			queue_packet(sources, 100, rtp_ori, (rtp_header_t *)rtp->b_rptr, &tmp, &tmp1);
 			rtp = rtp->b_next;
 			rtp_ori = rtp_ori->b_next;
 		}
