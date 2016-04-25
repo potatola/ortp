@@ -56,6 +56,27 @@ void ms_fec_driver_destroy(MSFecDriver * obj){
 	ortp_free(obj);
 }
 
+uint8_t rtp_get_pid(uint8_t *h)
+{
+	h += 0xC;
+
+	return (h[0] & 0x07);
+}
+
+bool_t rtp_get_non_reference_frame(uint8_t *h)
+{
+	h += 0xC;
+	
+	if(h[0] & (1 << 5)) return TRUE;
+	else return FALSE;
+}
+
+bool_t rtp_get_keyframe(unsigned char* data)
+{
+	data += 0x10;
+	return !(data[0] & 1);
+}
+
 /**
  * simple fec driver
 **/
@@ -342,6 +363,11 @@ bool_t simple_fec_driver_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint3
 	rtp_header_t *header = (rtp_header_t *)rtp->b_rptr;
 	mblk_t *rtcp;
 
+	if(rtp_get_pid(rtp->b_rptr) == 0) {
+		ortp_message("Fec incoming: pp=%p, ref=%d, keyframe=%d", rtp->b_rptr, FALSE == rtp_get_non_reference_frame(rtp->b_rptr)
+			, rtp_get_keyframe(rtp->b_rptr));
+	}
+
 	rtcp = peekq(&obj->recv_fec);
 #if defined(ANDROID) && defined(FEC_DEBUG)
 	log_file = fopen("sdcard/test1.txt", "a+");
@@ -527,27 +553,6 @@ typedef struct _MSEWFecDriver{
 	queue_t recv_rtp;
 	uint32_t curr_start_idx;
 }MSEWFecDriver;
-
-uint8_t rtp_get_pid(uint8_t *h)
-{
-	h += 0xC;
-
-	return (h[0] & 0x07);
-}
-
-bool_t rtp_get_non_reference_frame(uint8_t *h)
-{
-	h += 0xC;
-	
-	if(h[0] & (1 << 5)) return TRUE;
-	else return FALSE;
-}
-
-bool_t rtp_get_keyframe(unsigned char* data)
-{
-	data += 0x10;
-	return !(data[0] & 1);
-}
 
 bool_t ew_fec_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint16_t source_num){
 	MSEWFecDriver *obj = (MSEWFecDriver *)baseobj;
@@ -823,7 +828,7 @@ bool_t ew_fec_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint32_t user_ts
 	mblk_t *rtcp;
 
 	if(rtp_get_pid(rtp->b_rptr) == 0) {
-		ortp_message("Fec outgoing: ref=%d, keyframe=%d", !rtp_get_non_reference_frame(rtp->b_rptr)
+		ortp_message("Fec incoming: ref=%d, keyframe=%d", !rtp_get_non_reference_frame(rtp->b_rptr)
 			, rtp_get_keyframe(rtp->b_rptr));
 	}
 
@@ -844,7 +849,7 @@ bool_t ew_fec_incoming_rtp(MSFecDriver * baseobj, mblk_t * rtp, uint32_t user_ts
 		uint16_t currseq = rtcp_FEC_get_seq(rtcp);
 		if(currseq != obj->curr_start_idx) {
 			currseq = obj->curr_start_idx;
-			flushq(obj->recv_rtp);
+			flushq(&obj->recv_rtp, 0);
 		}
 		ew_fec_RS_decode((MSFecDriver *)obj, &obj->recv_rtp, &obj->parent.session->rtp.rq, currseq, rtcp_FEC_get_source_num(rtcp), 
 			rtcp_FEC_get_block_size(rtcp), user_ts, header->seq_number);
