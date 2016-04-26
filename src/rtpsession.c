@@ -222,7 +222,7 @@ static bool_t check_valid_frame(queue_t *q, uint32_t timestamp) {
 	return TRUE;
 }
 
-static void migrate_frame(queue_t *qs, queue_t *qd, uint32_t timestamp) {
+static void migrate_frame(queue_t *qs, queue_t *qd, uint32_t timestamp, bool_t move_back) {
 	uint32_t ts;
 	int tmp, tmp1;
 	mblk_t *rtp;
@@ -231,6 +231,7 @@ static void migrate_frame(queue_t *qs, queue_t *qd, uint32_t timestamp) {
 	//migrate packets
 	while(!qempty(qs)) {
 		rtp = peekq(qs);
+		if (rtp == NULL) break;
 		header = (rtp_header_t *)rtp->b_rptr;
 		ts = header->timestamp;
 		//ortp_message("GYF: seeing rtp seq=%d", seq);
@@ -246,8 +247,9 @@ static void migrate_frame(queue_t *qs, queue_t *qd, uint32_t timestamp) {
 
 	// move back complete frames
 	rtp = peekq(qd);
-	while(check_valid_frame(qd, ((rtp_header_t *)rtp->b_rptr)->timestamp)) {
-		migrate_frame(qd, qs, ((rtp_header_t *)rtp->b_rptr)->timestamp);
+	while(move_back && rtp != NULL && check_valid_frame(qd, ((rtp_header_t *)rtp->b_rptr)->timestamp)) {
+		ortp_message("migrate packets of ts=%d", ((rtp_header_t *)rtp->b_rptr)->timestamp);
+		migrate_frame(qd, qs, ((rtp_header_t *)rtp->b_rptr)->timestamp, FALSE);
 	}
 }
 
@@ -288,13 +290,14 @@ mblk_t *rtp_getq_permissive(RtpSession * session, queue_t *q,uint32_t timestamp,
 			else {
 				if(!qempty(&session->rtp.bufq)) {// not I frame, previous frames still in bufq
 					ortp_message("previous frame missing, current nonreference frame useless");
-					migrate_frame(q, &session->rtp.bufq, tmprtp->timestamp);
+					migrate_frame(q, &session->rtp.bufq, tmprtp->timestamp, TRUE);
 					return ret;
 				}
 			}
 			if(!check_valid_frame(q, tmprtp->timestamp)) {
 				ortp_message("invalid frame, migrate packets");
-				migrate_frame(q, &session->rtp.bufq, tmprtp->timestamp);
+				migrate_frame(q, &session->rtp.bufq, tmprtp->timestamp, TRUE);
+				ortp_message("invalid frame, finishedd");
 				return ret;
 			}
 		}

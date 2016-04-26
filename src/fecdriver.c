@@ -274,8 +274,8 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 			block_info[received_count].row = rtcp_FEC_get_source_num(fec)+rtcp_FEC_get_index(fec);
 			
 			received_count ++;
-			ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
-				received_count, block_info[received_count-1].row);
+			//ortp_message("RSDecoder: fec packet=(%d,%d), num=%d, row=%d", fec_seq, rtcp_FEC_get_index(fec), 
+			//	received_count, block_info[received_count-1].row);
 #if defined(ANDROID) && defined(FEC_DEBUG)
 			log_file = fopen("sdcard/test1.txt", "a+");
 			fprintf(log_file, "RSDecoder: fec packet=(%d,%d), num=%d, row=%d\n", fec_seq, rtcp_FEC_get_index(fec), 
