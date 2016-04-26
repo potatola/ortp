@@ -1150,6 +1150,7 @@ int rtp_session_rtp_send (RtpSession * session, mblk_t * m){
 	OList *elem=NULL;
 
 	hdr = (rtp_header_t *) m->b_rptr;
+	if(hdr->seq_number % 100 == 7) return 0;
 	if (hdr->version == 0) {
 		/* We are probably trying to send a STUN packet so don't change its content. */
 	} else {

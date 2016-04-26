@@ -296,6 +296,7 @@ typedef struct _RtpStream
 	int time_jump;
 	uint32_t ts_jump;
 	queue_t rq;
+	queue_t bufq;
 	queue_t tev_rq;
 	void *QoSHandle;
 	unsigned long QoSFlowID;

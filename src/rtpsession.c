@@ -196,7 +196,6 @@ mblk_t *rtp_getq(queue_t *q,uint32_t timestamp, int *rejected)
 
 static int last_seq = -1;
 static uint32_t last_ts = 0; 
-static queue_t bufq;
 bool_t rtp_get_non_reference_frame(uint8_t *h);
 
 static bool_t check_valid_frame(queue_t *q, uint32_t timestamp) {
@@ -206,7 +205,8 @@ static bool_t check_valid_frame(queue_t *q, uint32_t timestamp) {
 
 	while(rtp != NULL && rtp != &q->_q_stopper) {
 		ts = ((rtp_header_t *)rtp->b_rptr)->timestamp;
-		ortp_message("GYF: seeing rtp seq=%d", ((rtp_header_t *)rtp->b_rptr)->seq_number);
+		ortp_message("GYF: seeing rtp seq=%d,%d, pid=%d", ((rtp_header_t *)rtp->b_rptr)->seq_number
+			, ((rtp_header_t *)rtp->b_rptr)->timestamp, rtp_get_pid(rtp->b_rptr));
 		if(ts == timestamp) {
 			if(rtp_get_pid(rtp->b_rptr) != curr_pid) return FALSE;
 			else if(msgdsize(rtp) < 1452) curr_pid ++;
@@ -246,13 +246,13 @@ static void migrate_frame(queue_t *qs, queue_t *qd, uint32_t timestamp) {
 
 	// move back complete frames
 	rtp = peekq(qd);
-	if(check_valid_frame(qd, ((rtp_header_t *)rtp->b_rptr)->timestamp)) {
+	while(check_valid_frame(qd, ((rtp_header_t *)rtp->b_rptr)->timestamp)) {
 		migrate_frame(qd, qs, ((rtp_header_t *)rtp->b_rptr)->timestamp);
 	}
 }
 
 
-mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
+mblk_t *rtp_getq_permissive(RtpSession * session, queue_t *q,uint32_t timestamp,uint32_t user_ts, int *rejected)
 {
 	mblk_t *tmp,*ret=NULL;
 	rtp_header_t *tmprtp;
@@ -262,7 +262,7 @@ mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 
 	if(last_seq == -1) {
 		last_seq = 0;
-		qinit(&bufq);
+		qinit(&session->rtp.bufq);
 	}
 
 	if (qempty(q))
@@ -277,21 +277,31 @@ mblk_t *rtp_getq_permissive(queue_t *q,uint32_t timestamp, int *rejected)
 	ortp_debug("rtp_getq_permissive: Seeing packet with ts=%i",tmprtp->timestamp);
 	if ( RTP_TIMESTAMP_IS_NEWER_THAN(timestamp,tmprtp->timestamp) )
 	{
-		if(last_ts != timestamp) {
-			if(!rtp_get_non_reference_frame(tmp->b_rptr)) {
+		//GYF deal with rtp
+		ms_fec_driver_incoming_rtp(session->fec, tmp, user_ts);
+		if(last_ts != tmprtp->timestamp) {
+			last_ts = tmprtp->timestamp;
+			if(!rtp_get_non_reference_frame(tmp->b_rptr)) {// encounter I frame
 				ortp_message("flush bufq");
-				flushq(&bufq, 0);
+				flushq(&session->rtp.bufq, 0);
+			}
+			else {
+				if(!qempty(&session->rtp.bufq)) {// not I frame, previous frames still in bufq
+					ortp_message("previous frame missing, current nonreference frame useless");
+					migrate_frame(q, &session->rtp.bufq, tmprtp->timestamp);
+					return ret;
+				}
 			}
 			if(!check_valid_frame(q, tmprtp->timestamp)) {
 				ortp_message("invalid frame, migrate packets");
-				migrate_frame(q, &bufq, tmprtp->timestamp);
+				migrate_frame(q, &session->rtp.bufq, tmprtp->timestamp);
 				return ret;
 			}
-			last_ts = timestamp;
 		}
 		ret=getq(q); /* dequeue the packet, since it has an interesting timestamp*/
+		tmprtp=(rtp_header_t*)ret->b_rptr;
 		ortp_message("rtp_getq_permissive: Found packet with ts=%i,%d,%d,%d",tmprtp->timestamp, tmprtp->seq_number
-			, rtp_get_pid(tmp->b_rptr), msgdsize(tmp));
+			, rtp_get_pid(ret->b_rptr), msgdsize(ret));
 	}
 	return ret;
 }
@@ -336,6 +346,7 @@ rtp_session_init (RtpSession * session, int mode)
 	session->multicast_ttl=RTP_DEFAULT_MULTICAST_TTL;
 	session->multicast_loopback=RTP_DEFAULT_MULTICAST_LOOPBACK;
 	qinit(&session->rtp.rq);
+	qinit(&session->rtp.bufq);
 	qinit(&session->rtp.tev_rq);
 	qinit(&session->contributing_sources);
 	session->eventqs=NULL;
@@ -1270,7 +1281,7 @@ rtp_session_recvm_with_ts (RtpSession * session, uint32_t user_ts)
 	ts = jitter_control_get_compensated_timestamp(&session->rtp.jittctl,user_ts);
 	if (session->rtp.jittctl.enabled==TRUE){
 		if (session->permissive)
-			mp = rtp_getq_permissive(&session->rtp.rq, ts,&rejected);
+			mp = rtp_getq_permissive(session, &session->rtp.rq, ts, user_ts,&rejected);
 		else{
 			mp = rtp_getq(&session->rtp.rq, ts,&rejected);
 		}
@@ -1292,8 +1303,6 @@ rtp_session_recvm_with_ts (RtpSession * session, uint32_t user_ts)
 		rtp = (rtp_header_t *) mp->b_rptr;
 		packet_ts=rtp->timestamp;
 		
-		//GYF deal with rtp
-		ms_fec_driver_incoming_rtp(session->fec, mp, user_ts);
 		ortp_debug("Returning mp with ts=%i", packet_ts);
 		/* check for payload type changes */
 		if (session->rcv.pt != rtp->paytype)
@@ -1590,6 +1599,7 @@ void rtp_session_uninit (RtpSession * session)
 	}
 	/*flush all queues */
 	flushq(&session->rtp.rq, FLUSHALL);
+	flushq(&session->rtp.bufq, FLUSHALL);
 	flushq(&session->rtp.tev_rq, FLUSHALL);
 
 	if (session->eventqs!=NULL) o_list_free(session->eventqs);

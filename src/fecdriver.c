@@ -333,7 +333,7 @@ bool_t simple_fec_driver_RS_decode(MSFecDriver * baseobj, queue_t *sources, int 
 		ortp_message("RSDecoder: seq=%d, size=%d", ((rtp_header_t *)pkt_data)->seq_number, pkt_size);
 		if(((rtp_header_t *)pkt_data)->seq_number <= min_seq){
 			ortp_message("RSDecoder: overtime packet seq=%d", ((rtp_header_t *)pkt_data)->seq_number);
-			continue;
+			//continue;
 		}
 		dec_rtp = reconstruct_rtp_packet(pkt_data, pkt_size);
 		rtp_header = (rtp_header_t *)dec_rtp->b_rptr;
