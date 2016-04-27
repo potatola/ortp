@@ -5,7 +5,7 @@
 #include "ortp/cauchy_256.h"
 #include <stdio.h>
 
-#define FEC_DEBUG
+//#define FEC_DEBUG
 
 // TODO: called in __rtp_session_sendm_with_ts, before transformed into network format. Should be dealed with.
 bool_t ms_fec_driver_outgoing_rtp(MSFecDriver * obj,mblk_t * rtp){
@@ -92,7 +92,6 @@ static unsigned char* msg2stream(mblk_t *im) {
 **/
 bool_t simple_fec_driver_set_rate(MSFecDriver *baseobj, uint16_t fec_rate, uint16_t source_num){
 	MSSimpleFecDriver *obj = (MSSimpleFecDriver *)baseobj;
-	return TRUE;
 	if(source_num == 0) {
 		int delta = (100 + obj->source_num - 1) / obj->source_num;
 		if(fec_rate == 1 && obj->fec_rate <= 100) {
