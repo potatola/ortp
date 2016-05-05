@@ -530,7 +530,19 @@ MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format){
     }
 	ortp_message("SimpleFecDriver: created driver [%p]", obj);
 	
+	// @1:fec driver, @2:fec rate, @3:source num
+	ms_fec_driver_set_rate(obj, 0, 5);
+	ms_fec_driver_set_rate(obj, 1, 0);
+	
 	return (MSFecDriver *)obj;
+}
+
+
+MSFecDriver * ms_simple_ew_fec_driver_new(RtpSession *session, int format){
+	MSFecDriver *obj = (MSFecDriver *)ms_simple_fec_driver_new(session, format);
+	ms_fec_driver_set_rate(obj, 0, 3);
+	ms_fec_driver_set_rate(obj, 1, 0);
+	return obj;
 }
 
 

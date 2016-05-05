@@ -41,6 +41,7 @@ ORTP_PUBLIC void ms_fec_driver_destroy(MSFecDriver *obj);
  * my fec object
 **/
 ORTP_PUBLIC MSFecDriver * ms_simple_fec_driver_new(RtpSession *session, int format);
+ORTP_PUBLIC MSFecDriver * ms_simple_ew_fec_driver_new(RtpSession *session, int format);
 ORTP_PUBLIC MSFecDriver * ms_ew_fec_driver_new(RtpSession *session, int format);
 ORTP_PUBLIC void ms_ew_fec_rtp_store(MSFecDriver * baseobj, mblk_t * rtp);
 
